@@ -321,3 +321,56 @@ async def _settle(*agents: Agent) -> None:
     assert drained, "bus did not drain: a handler is stuck"
     for agent in agents:
         await agent.wait_idle()
+
+
+async def test_explain_output_is_ascii_safe():
+    """explain() is a debugging aid, so it must not raise on the console it is
+    most likely to be used from. Box-drawing characters raise
+    UnicodeEncodeError under cp1252, which is the default on a Windows
+    terminal."""
+    runtime = EventMemRuntime()
+    a = Agent("a", runtime)
+
+    root = await a.remember("root", memory_id="m1", reason="observed")
+    child = MemoryEvent(
+        event_type=EventType.MEMORY_CREATED, source_agent="b", memory_id="m2",
+        payload={"content": "derived"}, caused_by=root.event_id,
+        provenance=Provenance(source_agent="b", reason="derived"),
+    )
+    await runtime.publish(child)
+
+    text = runtime.provenance.explain("m2")
+    text.encode("cp1252")          # would raise before the fix
+    assert "+-" in text
+
+
+async def test_agents_do_not_read_memory_while_idle():
+    """The event-driven claim, as a test: an agent that is sent nothing does
+    nothing. A pull architecture would show reads accumulating here."""
+    import asyncio
+
+    from eventmem.store.memory import InMemoryRecordStore
+
+    class CountingStore(InMemoryRecordStore):
+        reads = 0
+
+        def get(self, memory_id, *, count_access=True):
+            if count_access:
+                type(self).reads += 1
+            return super().get(memory_id, count_access=count_access)
+
+        def search(self, *args, **kwargs):
+            type(self).reads += 1
+            return super().search(*args, **kwargs)
+
+    CountingStore.reads = 0
+    runtime = EventMemRuntime(record_store=CountingStore())
+    watcher = Agent("watcher", runtime)
+    await runtime.subscribe(Subscription("watcher"))
+    await watcher.start()
+
+    await asyncio.sleep(0.6)  # several inbox timeouts' worth
+
+    assert CountingStore.reads == 0
+    assert watcher.received == []
+    await watcher.stop()

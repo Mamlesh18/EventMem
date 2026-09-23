@@ -36,7 +36,7 @@ class ConsoleTracer:
 
     def _short(self, text: str) -> str:
         text = " ".join((text or "").split())
-        return text if len(text) <= self._width else text[: self._width - 1] + "…"
+        return text if len(text) <= self._width else text[: self._width - 3] + "..."
 
     def on_publish(self, event: MemoryEvent) -> None:
         print(
