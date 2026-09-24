@@ -1,0 +1,22 @@
+# Redis for the EventMem Redis transport.
+#   docker compose up -d
+# The port matches the REDIS_URL default, so no configuration is needed.
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: eventmem-redis
+    ports:
+      - "6379:6379"
+    # appendonly keeps the event log across restarts, which is what makes
+    # "the log is the source of truth" true beyond a single process lifetime.
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - eventmem-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  eventmem-redis-data:
