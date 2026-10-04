@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mem0 vs EventMem</title>
+<style>
+  /* Palette: dataviz reference instance, slots 1 (blue) and 2 (orange).
+     Validated with scripts/validate_palette.js -- ALL CHECKS PASS in both
+     modes (worst adjacent CVD dE 24.7 light / 26.8 dark). */
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --plane: #f9f9f7;
+    --ink-1: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --mem0: #2a78d6;
+    --eventmem: #eb6834;
+    --good: #0ca30c;
+    --warning: #fab219;
+    --critical: #d03b3b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --plane: #0d0d0d;
+      --ink-1: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --mem0: #3987e5;
+      --eventmem: #d95926;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --plane: #0d0d0d;
+    --ink-1: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --mem0: #3987e5;
+    --eventmem: #d95926;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--plane); color: var(--ink-1);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 16px 80px; }
+
+  header { margin-bottom: 28px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.015em; }
+  .sub { color: var(--ink-2); max-width: 70ch; margin: 0; }
+
+  .statusbar {
+    display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+    margin: 18px 0 0; padding: 12px 14px;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-muted); flex: 0 0 auto; }
+  .dot.live { background: var(--good); animation: pulse 1.4s ease-in-out infinite; }
+  .dot.done { background: var(--good); }
+  .dot.err { background: var(--critical); }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  @media (prefers-reduced-motion: reduce) { .dot.live { animation: none } }
+
+  .progress { height: 4px; background: var(--grid); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+  .progress > i { display: block; height: 100%; width: 0%; background: var(--ink-2); transition: width .2s ease; }
+
+  section { margin-top: 34px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em;
+       color: var(--ink-muted); margin: 0 0 14px; font-weight: 600; }
+
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+  }
+  .grid { display: grid; gap: 14px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+  /* --- stat tiles --- */
+  .tile .label { font-size: 12px; color: var(--ink-muted); text-transform: uppercase;
+                 letter-spacing: .06em; margin-bottom: 10px; }
+  .tile .rows { display: grid; gap: 9px; }
+  .srow { display: grid; grid-template-columns: 11px 1fr auto; gap: 9px; align-items: baseline; }
+  .swatch { width: 11px; height: 11px; border-radius: 3px; align-self: center; }
+  .sname { font-size: 13px; color: var(--ink-2); }
+  .sval { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .note { font-size: 12px; color: var(--ink-muted); margin-top: 11px; line-height: 1.45; }
+
+  /* --- bars --- */
+  .barchart { display: grid; gap: 16px; }
+  .bargroup .cap { font-size: 13px; color: var(--ink-2); margin-bottom: 7px;
+                   display: flex; justify-content: space-between; gap: 12px; }
+  .track { height: 20px; background: var(--grid); border-radius: 4px; position: relative; }
+  .track > i {
+    display: block; height: 100%; width: 0;
+    border-radius: 0 4px 4px 0; transition: width .35s cubic-bezier(.2,.7,.3,1);
+  }
+  .track > i.full { border-radius: 4px; }
+  .barlabel { position: absolute; right: 8px; top: 0; height: 100%;
+              display: flex; align-items: center; font-size: 12px;
+              font-variant-numeric: tabular-nums; color: var(--ink-1); }
+
+  /* --- table --- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: right; padding: 9px 10px; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em;
+       color: var(--ink-muted); font-weight: 600; white-space: nowrap; }
+  td { font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  .sysname { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .better { color: var(--good); font-weight: 600; }
+
+  /* --- verdicts --- */
+  .verdict { display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px;
+             border: 1px solid var(--border); background: var(--surface-1); }
+  .verdict + .verdict { margin-top: 10px; }
+  .vicon { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+           display: grid; place-items: center; font-size: 12px; font-weight: 700;
+           color: #fff; margin-top: 1px; }
+  .v-win .vicon { background: var(--good); }
+  .v-tie .vicon { background: var(--mem0); }
+  .v-loss .vicon { background: var(--critical); }
+  .v-capability .vicon { background: var(--eventmem); }
+  .v-info .vicon, .v-caveat .vicon { background: var(--ink-muted); }
+  .vtitle { font-weight: 600; margin-bottom: 3px; }
+  .vbody { color: var(--ink-2); font-size: 13.5px; }
+
+  /* --- live log --- */
+  .log { font-family: var(--mono); font-size: 12px; max-height: 240px;
+         overflow-y: auto; color: var(--ink-2); }
+  .log div { padding: 2px 0; border-bottom: 1px solid var(--grid); white-space: pre-wrap; }
+  .log div:last-child { border-bottom: none; }
+  .log .k { color: var(--ink-muted); }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--ink-2); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); }
+  .hide { display: none !important; }
+  .caveat { font-size: 13px; color: var(--ink-2); background: var(--surface-1);
+            border: 1px solid var(--border); border-left: 3px solid var(--warning);
+            border-radius: 8px; padding: 14px 16px; }
+  @media (max-width: 560px) {
+    .wrap { padding: 20px 16px 60px; }
+    h1 { font-size: 21px; }
+    table { font-size: 12.5px; }
+    th, td { padding: 7px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>mem0 retrieval vs EventMem event-driven retrieval</h1>
+    <p class="sub">Both systems run the same corpus, the same labelled queries and the
+    same embedding model, against the same Redis. Any difference below is a property
+    of the architecture, not of the data or the model.</p>
+
+    <div class="statusbar">
+      <span class="pill"><i class="dot" id="conn-dot"></i><span id="conn">connecting…</span></span>
+      <span class="pill" id="p-env">—</span>
+      <span class="pill" id="p-corpus">—</span>
+      <span class="pill" id="p-phase">—</span>
+    </div>
+    <div class="progress"><i id="bar"></i></div>
+  </header>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--mem0)"></i>mem0 &mdash; passive store, pull via <code>search()</code></span>
+    <span><i class="swatch" style="background:var(--eventmem)"></i>EventMem &mdash; active, push via Redis Streams</span>
+  </div>
+
+  <section id="s-tiles">
+    <h2>Headline</h2>
+    <div class="grid g4" id="tiles"></div>
+  </section>
+
+  <section id="s-bars">
+    <h2>Side by side</h2>
+    <div class="grid g2" id="bars"></div>
+  </section>
+
+  <section id="s-verdicts" class="hide">
+    <h2>Reading the numbers</h2>
+    <div id="verdicts"></div>
+  </section>
+
+  <section id="s-table">
+    <h2>Full results</h2>
+    <div class="card" style="overflow-x:auto"><table id="table">
+      <thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody>
+    </table></div>
+    <p class="note">A green value is the better of the two for that metric. Metrics with
+    no data show <code>n/a</code> rather than zero, so a system that did nothing cannot
+    look like the fastest.</p>
+  </section>
+
+  <section>
+    <h2>Live activity</h2>
+    <div class="card"><div class="log" id="log"></div></div>
+  </section>
+
+  <section>
+    <h2>Method</h2>
+    <div class="caveat" id="method">
+      <strong>Fairness and what this does not measure.</strong>
+      Both sides use <code>sentence-transformers all-MiniLM-L6-v2</code> and the same
+      Redis instance. mem0 runs with <code>infer=False</code>, which skips its LLM
+      fact-extraction step &mdash; a deliberate concession, since charging it an LLM
+      call per write would inflate EventMem's advantage on something this benchmark is
+      not about. The cost is that mem0's headline features (LLM-curated memory,
+      contradiction detection, memory updating, graph memory) are switched off, and
+      EventMem has no equivalent of any of them. This measures retrieval quality and
+      propagation only.
+    </div>
+  </section>
+
+</div>
+
+<script>
+const PHASE_ORDER = ["ingest", "retrieval", "propagation", "reactivity"];
+const SYSTEMS = ["mem0", "eventmem"];
+const COLOR = { mem0: "var(--mem0)", eventmem: "var(--eventmem)" };
+const NAME  = { mem0: "mem0", eventmem: "EventMem" };
+
+const state = {
+  k: 5,
+  rows: {},            // system -> flattened metrics
+  metrics: {},         // system -> phase -> metrics
+  costs: {},
+  done: new Set(),
+  totalSteps: 0,
+  doneSteps: 0,
+  verdicts: null,
+};
+
+// ---------------------------------------------------------------- formatting
+const fmt = (v, digits = 3) => {
+  if (v === null || v === undefined) return "—";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v !== "number") return String(v);
+  if (Number.isNaN(v)) return "n/a";
+  return Number.isInteger(v) ? String(v) : v.toFixed(digits);
+};
+const pct = v => (typeof v === "number" && !Number.isNaN(v)) ? (v * 100).toFixed(0) + "%" : "n/a";
+
+// Which direction is better, per metric key.
+const BETTER = {
+  mean_write_ms: "lower", p95_write_ms: "lower", total_wall_ms: "lower",
+  mean_search_ms: "lower", p95_search_ms: "lower",
+  median_write_ms: "lower", median_search_ms: "lower", llm_calls: "lower",
+  retrievals_spent: "lower", retrievals_per_fact_learned: "lower",
+  embed_calls: "lower", vector_searches: "lower", redis_commands: "lower",
+  mrr: "higher", coverage: "higher", satisfied: "higher",
+  learned_without_asking: "higher",
+};
+const betterOf = key => BETTER[key] || (key.startsWith("recall_at_") || key.startsWith("precision_at_") ? "higher" : null);
+
+// ------------------------------------------------------------------- tiles
+function tile(label, key, { format = fmt, note = "" } = {}) {
+  const rows = SYSTEMS.map(s => {
+    const v = state.rows[s]?.[key];
+    return `<div class="srow">
+      <i class="swatch" style="background:${COLOR[s]}"></i>
+      <span class="sname">${NAME[s]}</span>
+      <span class="sval">${format(v)}</span>
+    </div>`;
+  }).join("");
+  return `<div class="card tile">
+    <div class="label">${label}</div>
+    <div class="rows">${rows}</div>
+    ${note ? `<div class="note">${note}</div>` : ""}
+  </div>`;
+}
+
+function renderTiles() {
+  document.getElementById("tiles").innerHTML = [
+    tile(`Recall @${state.k}`, `recall_at_${state.k}`, {
+      format: v => pct(v),
+      note: "Share of the labelled relevant facts returned. Same embedder both sides, so a tie is the expected and desirable result.",
+    }),
+    tile("Propagation coverage", "coverage", {
+      format: v => pct(v),
+      note: "Of the facts an agent genuinely needed, how many it ended up holding.",
+    }),
+    tile("Retrievals spent", "retrievals_spent", {
+      note: "Searches each system had to issue to reach that coverage. Push needs none.",
+    }),
+    tile("Learned without asking", "learned_without_asking", {
+      note: "A passive store scores zero by construction, not by failing. This is a capability difference.",
+    }),
+  ].join("");
+}
+
+// -------------------------------------------------------------------- bars
+function barGroup(title, key, { format = fmt, unit = "", lowerIsBetter = false } = {}) {
+  const vals = SYSTEMS.map(s => state.rows[s]?.[key]).map(v =>
+    (typeof v === "number" && !Number.isNaN(v)) ? v : null);
+  const max = Math.max(...vals.map(v => v ?? 0), 0.0001);
+  const bars = SYSTEMS.map((s, i) => {
+    const v = vals[i];
+    const w = v === null ? 0 : Math.max((v / max) * 100, v > 0 ? 2 : 0);
+    return `<div class="bargroup">
+      <div class="cap"><span>${NAME[s]}</span><span>${v === null ? "n/a" : format(v) + unit}</span></div>
+      <div class="track"><i class="full" style="width:${w}%;background:${COLOR[s]}"></i></div>
+    </div>`;
+  }).join("");
+  return `<div class="card">
+    <div class="label" style="font-size:12px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">
+      ${title}${lowerIsBetter ? " &middot; lower is better" : ""}
+    </div>
+    <div class="barchart">${bars}</div>
+  </div>`;
+}
+
+function renderBars() {
+  document.getElementById("bars").innerHTML = [
+    barGroup("Median search latency", "median_search_ms", { unit: " ms", lowerIsBetter: true }),
+    barGroup("Median write latency", "median_write_ms", { unit: " ms", lowerIsBetter: true }),
+    barGroup("Embedding calls", "embed_calls", { lowerIsBetter: true }),
+    barGroup("Redis commands (server-counted)", "redis_commands", { lowerIsBetter: true }),
+  ].join("");
+}
+
+// ------------------------------------------------------------------- table
+const TABLE_KEYS = () => [
+  ["Phase B — retrieval", null],
+  [`recall@${state.k}`, `recall_at_${state.k}`],
+  [`precision@${state.k}`, `precision_at_${state.k}`],
+  ["MRR", "mrr"],
+  ["search ms (median)", "median_search_ms"],
+  ["search ms (mean)", "mean_search_ms"],
+  ["search ms (p95)", "p95_search_ms"],
+  ["Phase A — ingest", null],
+  ["write ms (median)", "median_write_ms"],
+  ["write ms (mean)", "mean_write_ms"],
+  ["write ms (p95)", "p95_write_ms"],
+  ["ingest wall ms", "total_wall_ms"],
+  ["Phase C — propagation", null],
+  ["required deliveries", "required_deliveries"],
+  ["satisfied", "satisfied"],
+  ["coverage", "coverage"],
+  ["retrievals spent", "retrievals_spent"],
+  ["Phase D — reactivity", null],
+  ["learned without asking", "learned_without_asking"],
+  ["push latency ms (mean)", "mean_push_latency_ms"],
+  ["can react to a peer's write", "can_react_to_another_agents_write"],
+  ["Cost", null],
+  ["embedding calls", "embed_calls"],
+  ["vector searches", "vector_searches"],
+  ["LLM calls (must be 0)", "llm_calls"],
+  ["redis commands", "redis_commands"],
+];
+
+function renderTable() {
+  document.getElementById("thead").innerHTML =
+    `<th>metric</th>` + SYSTEMS.map(s =>
+      `<th><span class="sysname"><i class="swatch" style="background:${COLOR[s]}"></i>${NAME[s]}</span></th>`
+    ).join("");
+
+  const body = TABLE_KEYS().map(([label, key]) => {
+    if (key === null) {
+      return `<tr><td colspan="${SYSTEMS.length + 1}"
+        style="padding-top:16px;font-size:11.5px;text-transform:uppercase;
+               letter-spacing:.05em;color:var(--ink-muted);font-weight:600;
+               border-bottom:none">${label}</td></tr>`;
+    }
+    const vals = SYSTEMS.map(s => state.rows[s]?.[key]);
+    const nums = vals.filter(v => typeof v === "number" && !Number.isNaN(v));
+    let best = null;
+    const dir = betterOf(key);
+    if (dir && nums.length === SYSTEMS.length && nums[0] !== nums[1]) {
+      best = dir === "higher" ? Math.max(...nums) : Math.min(...nums);
+    }
+    const cells = vals.map(v => {
+      const isBest = best !== null && v === best;
+      const shown = key === "coverage" ? pct(v) : fmt(v);
+      return `<td class="${isBest ? "better" : ""}">${shown}</td>`;
+    }).join("");
+    return `<tr><td>${label}</td>${cells}</tr>`;
+  }).join("");
+  document.getElementById("tbody").innerHTML = body;
+}
+
+// ---------------------------------------------------------------- verdicts
+const VICON = { win: "✓", tie: "=", loss: "!", capability: "+", info: "i", caveat: "!" };
+function renderVerdicts() {
+  if (!state.verdicts) return;
+  document.getElementById("s-verdicts").classList.remove("hide");
+  document.getElementById("verdicts").innerHTML = state.verdicts.map(v =>
+    `<div class="verdict v-${v.kind}">
+       <div class="vicon">${VICON[v.kind] || "i"}</div>
+       <div><div class="vtitle">${v.title}</div><div class="vbody">${v.body}</div></div>
+     </div>`).join("");
+}
+
+// --------------------------------------------------------------------- log
+const logEl = document.getElementById("log");
+function log(kind, text) {
+  const d = document.createElement("div");
+  d.innerHTML = `<span class="k">${kind.padEnd(20, " ")}</span>${text}`;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+  while (logEl.children.length > 400) logEl.removeChild(logEl.firstChild);
+}
+
+function setPhase(text) { document.getElementById("p-phase").textContent = text; }
+function bump() {
+  state.doneSteps++;
+  const pctDone = state.totalSteps ? Math.min(100, (state.doneSteps / state.totalSteps) * 100) : 0;
+  document.getElementById("bar").style.width = pctDone + "%";
+}
+
+function renderAll() { renderTiles(); renderBars(); renderTable(); renderVerdicts(); }
+
+// ------------------------------------------------------------------ events
+function handle(e) {
+  switch (e.kind) {
+    case "run_start": {
+      state.k = e.k ?? 5;
+      const env = e.environment || {};
+      document.getElementById("p-env").textContent =
+        `${env.both_on_redis ? "both on Redis" : "mem0 on " + (env.mem0_store || "?")} · ${e.embed_model}`;
+      const c = e.corpus || {};
+      document.getElementById("p-corpus").textContent =
+        `${c.facts} facts · ${c.queries} queries · ${c.required_deliveries} required deliveries`;
+      // ingest + retrieval + propagation + reactivity, per system
+      state.totalSteps = 2 * ((c.facts || 0) + (c.queries || 0) + (c.agents || 0) + 1);
+      if (!env.both_on_redis) {
+        document.getElementById("method").insertAdjacentHTML("afterbegin",
+          `<p style="margin:0 0 10px"><strong>Weaker comparison:</strong> mem0's vectors are
+           in <code>${env.mem0_store}</code>, not Redis, because the Redis instance has no
+           search module. Latency numbers are not directly comparable.</p>`);
+      }
+      log("run", `namespace ${e.namespace} · k=${state.k}`);
+      renderAll();
+      break;
+    }
+    case "system_start":
+      setPhase(`${NAME[e.system] || e.system}: starting`);
+      log("system", `${e.label}`);
+      break;
+    case "phase_start":
+      setPhase(`${NAME[e.system] || e.system}: ${e.phase}`);
+      log("phase", `${e.system} → ${e.phase} (${e.total})`);
+      break;
+    case "ingest_progress":
+      bump();
+      if (e.done % 8 === 0 || e.done === e.total)
+        log("ingest", `${e.system} ${e.done}/${e.total} · ${e.latency_ms} ms`);
+      break;
+    case "retrieval_progress":
+      bump();
+      log("query", `${e.system} ${e.query_id} · hits ${e.hits}/${e.relevant.length}`
+                 + ` · recall ${e.recall} · ${e.latency_ms} ms`);
+      break;
+    case "propagation_progress":
+      bump();
+      log("propagate", `${e.system} ${e.agent} · ${e.searches} searches`);
+      break;
+    case "phase_done": {
+      bump();
+      state.metrics[e.system] = state.metrics[e.system] || {};
+      state.metrics[e.system][e.phase] = e.metrics;
+      state.rows[e.system] = Object.assign({}, state.rows[e.system], e.metrics);
+      log("done", `${e.system} ${e.phase}`);
+      renderAll();
+      break;
+    }
+    case "system_done":
+      state.costs[e.system] = e.costs;
+      state.rows[e.system] = Object.assign({}, state.rows[e.system], {
+        embed_calls: e.costs.embed_calls,
+        vector_searches: e.costs.vector_searches,
+        redis_commands: e.costs.redis_commands_total,
+      });
+      state.done.add(e.system);
+      log("system", `${e.system} complete`);
+      renderAll();
+      break;
+    case "run_done":
+      state.verdicts = e.verdicts;
+      (e.rows || []).forEach(r => {
+        state.rows[r.system] = Object.assign({}, state.rows[r.system], r);
+      });
+      setPhase("complete");
+      document.getElementById("bar").style.width = "100%";
+      document.getElementById("conn-dot").className = "dot done";
+      document.getElementById("conn").textContent = "run complete";
+      log("run", "complete");
+      renderAll();
+      break;
+    case "system_error":
+      document.getElementById("conn-dot").className = "dot err";
+      document.getElementById("conn").textContent = `${e.system} failed`;
+      setPhase("error");
+      log("ERROR", `${e.system}: ${e.error}`);
+      break;
+    case "log":
+      log("note", e.message);
+      break;
+  }
+}
+
+// --------------------------------------------------------------------- wire
+renderAll();
+const es = new EventSource("/stream");
+es.onopen = () => {
+  document.getElementById("conn-dot").className = "dot live";
+  document.getElementById("conn").textContent = "live";
+};
+es.onmessage = ev => { try { handle(JSON.parse(ev.data)); } catch (err) { console.error(err); } };
+es.onerror = () => {
+  if (state.verdicts) return;            // finished runs close the stream
+  document.getElementById("conn-dot").className = "dot err";
+  document.getElementById("conn").textContent = "disconnected";
+};
+</script>
+</body>
+</html>

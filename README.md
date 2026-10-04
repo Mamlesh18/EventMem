@@ -77,6 +77,25 @@ not a footnote.
 
 Full numbers: [`docs/benchmarking.md`](docs/benchmarking.md).
 
+### Against mem0, over Redis, with a live dashboard
+
+```bash
+docker run -d --name eventmem-redis -p 6379:6379 redis/redis-stack:latest
+pip install -e ".[mem0bench]"
+python -m benchmarks.mem0_vs_eventmem.run
+```
+
+Compares mem0's `add`/`search` retrieval against EventMem's event-driven
+retrieval, both on the same Redis with the same embedding model, across four
+phases: ingest cost, retrieval quality, propagation coverage, and reactivity.
+The dashboard streams results as the run proceeds.
+
+Retrieval quality is expected to **tie** - both sides embed with the same model,
+so a tie is the result worth having: it shows push does not cost you retrieval.
+mem0 runs with `infer=False` (its LLM fact-extraction off, verified by a call
+counter), so its own headline features are out of scope and the report says so.
+See [`docs/mem0-comparison.md`](docs/mem0-comparison.md).
+
 ---
 
 ## Install
