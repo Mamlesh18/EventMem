@@ -110,6 +110,9 @@ reported rather than hidden. mem0 ran with `infer=False`, so its LLM
 fact-extraction, contradiction detection and graph memory were off and
 EventMem has no equivalent of any of them.
 
+**Start here:** [`docs/why-eventmem.md`](docs/why-eventmem.md) - the short,
+plain-language version with the five scenarios where this wins.
+
 **Which should you use?**
 [`docs/choosing-a-memory-system.md`](docs/choosing-a-memory-system.md) is the
 decision guide: a scenario-by-scenario recommendation across mem0, EventMem on

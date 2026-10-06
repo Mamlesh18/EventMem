@@ -332,6 +332,25 @@ async def selftest() -> Dict[str, Any]:
             "events": _HISTORY}
 
 
+def _json_safe(value: Any) -> Any:
+    """Make a payload valid JSON.
+
+    NaN and Infinity are what Python's json module emits for those floats, and
+    neither is legal JSON: JavaScript's JSON.parse rejects both, so a dashboard
+    or notebook cannot read the file. Absent metrics become null, which every
+    parser understands and which still reads as "no data" rather than zero.
+    """
+    if isinstance(value, float):
+        return None if value != value or value in (float("inf"), float("-inf")) else value
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, set):
+        return sorted(_json_safe(v) for v in value)
+    return value
+
+
 def print_table(rows: List[Dict[str, Any]], k: int) -> None:
     columns = [
         ("system", "system"),
@@ -489,7 +508,9 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if args.json:
         pathlib.Path(args.json).write_text(
-            json.dumps(document, indent=2, default=str), encoding="utf-8")
+            json.dumps(_json_safe(document), indent=2, default=str,
+                       allow_nan=False),
+            encoding="utf-8")
         print(f"  wrote {args.json}")
 
     if server is not None:

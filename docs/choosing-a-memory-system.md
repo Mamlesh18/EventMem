@@ -19,7 +19,7 @@ has the commands. Raw data: [`mem0-results.json`](mem0-results.json).
 | Agent B must **react** to what agent A just learned | **EventMem** | mem0 cannot notify. B only learns when it happens to search. |
 | Several agents would otherwise **repeat the same tool call** | **EventMem** | A result pushed once is a result nobody pays for twice. |
 | Multi-process / multi-container agents, or you need the log to survive a restart | **EventMem + Redis** | Redis Streams carry events between processes and the log is durable. |
-| Single process, latency-sensitive, state is rebuildable | **EventMem in-memory** | ~13× lower push latency and zero Redis ops for identical correctness. |
+| Single process, latency-sensitive, state is rebuildable | **EventMem in-memory** | 10-15x lower push latency and zero Redis ops for identical correctness. |
 | You need both curation *and* reactivity | **Both** | They are not mutually exclusive. mem0 as the curated store, EventMem as the coordination layer. |
 
 **The honest summary:** mem0 is a better *memory*. EventMem is a better
@@ -91,8 +91,9 @@ its reactivity would have been bought at the price of being a worse memory.
   ~2 ms, inside run-to-run noise), because both search in-process and both
   spend most of a write on embedding.
 - **The only place Redis actually costs EventMem is push latency:** 6.4 ms
-  against 0.5 ms, roughly **13×**, or about **+5.9 ms absolute** per delivery.
-  That is what durability and cross-process delivery cost.
+  against 0.5 ms, roughly **10-15x**, or about **+5.9 ms absolute** per delivery.
+  That is what durability and cross-process delivery cost. (15x in run 1,
+  11x in run 2 - quote the absolute figures, not the multiple.)
 
 ### Propagation — the architectural difference
 
@@ -185,8 +186,8 @@ broadcast at identical freshness and recall, with zero wasted wakeups against
 boundary; mem0 has no delivery at all.
 
 ### One process, low latency, state rebuildable from source
-→ **EventMem in-memory**. Same correctness, ~13× lower push latency, no Redis
-to operate.
+→ **EventMem in-memory**. Same correctness, 0.4 ms push instead of 6 ms, no
+Redis to operate.
 
 ### You already run mem0 and want reactivity
 → **Both.** Keep mem0 as the curated store. Put EventMem in front as the

@@ -44,8 +44,8 @@
       "retrievals_spent": 11,
       "retrievals_per_fact_learned": 0.5789,
       "learned_without_asking": 0,
-      "mean_push_latency_ms": NaN,
-      "p95_push_latency_ms": NaN,
+      "mean_push_latency_ms": null,
+      "p95_push_latency_ms": null,
       "can_react_to_another_agents_write": false,
       "queries": 12,
       "k": 5,
@@ -254,8 +254,8 @@
       "reactivity": {
         "metrics": {
           "learned_without_asking": 0,
-          "mean_push_latency_ms": NaN,
-          "p95_push_latency_ms": NaN,
+          "mean_push_latency_ms": null,
+          "p95_push_latency_ms": null,
           "can_react_to_another_agents_write": false
         },
         "detail": []
@@ -1736,8 +1736,8 @@
       "system": "mem0",
       "metrics": {
         "learned_without_asking": 0,
-        "mean_push_latency_ms": NaN,
-        "p95_push_latency_ms": NaN,
+        "mean_push_latency_ms": null,
+        "p95_push_latency_ms": null,
         "can_react_to_another_agents_write": false
       },
       "kind": "phase_done",
@@ -2109,8 +2109,8 @@
         },
         "reactivity": {
           "learned_without_asking": 0,
-          "mean_push_latency_ms": NaN,
-          "p95_push_latency_ms": NaN,
+          "mean_push_latency_ms": null,
+          "p95_push_latency_ms": null,
           "can_react_to_another_agents_write": false
         },
         "retrieval": {
@@ -3847,8 +3847,8 @@
           "retrievals_spent": 11,
           "retrievals_per_fact_learned": 0.5789,
           "learned_without_asking": 0,
-          "mean_push_latency_ms": NaN,
-          "p95_push_latency_ms": NaN,
+          "mean_push_latency_ms": null,
+          "p95_push_latency_ms": null,
           "can_react_to_another_agents_write": false,
           "queries": 12,
           "k": 5,
