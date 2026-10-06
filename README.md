@@ -77,6 +77,55 @@ not a footnote.
 
 Full numbers: [`docs/benchmarking.md`](docs/benchmarking.md).
 
+### Against mem0, over Redis, with a live dashboard
+
+```bash
+docker run -d --name eventmem-redis -p 6379:6379 redis/redis-stack:latest
+pip install -e ".[mem0bench]"
+python -m benchmarks.mem0_vs_eventmem.run
+```
+
+Compares mem0's `add`/`search` retrieval against EventMem's event-driven
+retrieval, both on the same Redis with the same embedding model, across four
+phases: ingest cost, retrieval quality, propagation coverage, and reactivity.
+The dashboard streams results as the run proceeds.
+
+**Measured results** (both on `redis/redis-stack`, same embedding model):
+
+| | mem0 | EventMem |
+|---|---|---|
+| recall@5 | 0.833 | 0.847 (tie) |
+| coverage of reachable deliveries | 0.571 | **1.000** |
+| retrievals spent to get there | 11 | **0** |
+| facts learned without asking | 0 | **40** |
+| search / write latency, median | 47-61 / 88-101 ms | **20-26 / 27-30 ms** |
+| Redis commands | **115** | 212 |
+
+Retrieval quality **ties**, which is the result worth having: both sides embed
+with the same model, so it shows push costs nothing in retrieval quality. mem0
+uses fewer Redis commands. Neither system can exceed 0.636 coverage of
+*required* deliveries on this corpus, because 16 of the 44 name an agent that
+declared no interest in that topic - the standing cost of selective routing,
+reported rather than hidden. mem0 ran with `infer=False`, so its LLM
+fact-extraction, contradiction detection and graph memory were off and
+EventMem has no equivalent of any of them.
+
+**Start here:** [`docs/why-eventmem.md`](docs/why-eventmem.md) - the short,
+plain-language version with the five scenarios where this wins.
+
+**Which should you use?**
+[`docs/choosing-a-memory-system.md`](docs/choosing-a-memory-system.md) is the
+decision guide: a scenario-by-scenario recommendation across mem0, EventMem on
+Redis and EventMem in-memory, with the full three-way benchmark, the evaluation
+methodology, and what the 117 tests actually cover. The short version is that
+mem0 is the better *memory* and EventMem the better *coordinator*, retrieval
+quality ties, and the only thing Redis costs EventMem is ~6ms of push latency.
+
+Also: [`docs/mem0-results.md`](docs/mem0-results.md) (the two-way run in
+detail, plus the three measurement bugs found while producing it) and
+[`docs/mem0-comparison.md`](docs/mem0-comparison.md) (method and fairness
+contract).
+
 ---
 
 ## Install

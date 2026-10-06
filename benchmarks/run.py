@@ -299,9 +299,29 @@ async def main_async(args: argparse.Namespace) -> int:
     return 0
 
 
+def _json_safe(value: Any) -> Any:
+    """Make a payload valid JSON.
+
+    NaN and Infinity are what Python's json module emits for those floats, and
+    neither is legal JSON: JavaScript's JSON.parse rejects both, so a dashboard
+    or notebook cannot read the file. Absent metrics become null, which every
+    parser understands and which still reads as "no data" rather than zero.
+    """
+    if isinstance(value, float):
+        return None if value != value or value in (float("inf"), float("-inf")) else value
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, set):
+        return sorted(_json_safe(v) for v in value)
+    return value
+
+
 def _write_json(path: str, payload: Dict[str, Any]) -> None:
+    payload = _json_safe(payload)
     with open(path, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2)
+        json.dump(payload, fh, indent=2, allow_nan=False)
     print(f"\nWrote {path}")
 
 

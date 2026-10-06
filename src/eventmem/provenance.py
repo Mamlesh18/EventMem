@@ -152,7 +152,10 @@ class ProvenanceTracker:
         chain = self.lineage(history[-1].event_id)
         lines = [f"{memory_id} (trust {self.trust_path(memory_id):.2f}):"]
         for i, node in enumerate(chain):
-            lines.append(f"  {'  ' * i}{'└─ ' if i else ''}{node}")
+            # ASCII only. This is a debugging aid, and box-drawing
+            # characters raise UnicodeEncodeError on a cp1252 Windows
+            # console -- exactly where someone is most likely to run it.
+            lines.append(f"  {'  ' * i}{'+- ' if i else ''}{node}")
         return "\n".join(lines)
 
     def stats(self) -> Dict[str, int]:
