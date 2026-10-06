@@ -90,11 +90,29 @@ retrieval, both on the same Redis with the same embedding model, across four
 phases: ingest cost, retrieval quality, propagation coverage, and reactivity.
 The dashboard streams results as the run proceeds.
 
-Retrieval quality is expected to **tie** - both sides embed with the same model,
-so a tie is the result worth having: it shows push does not cost you retrieval.
-mem0 runs with `infer=False` (its LLM fact-extraction off, verified by a call
-counter), so its own headline features are out of scope and the report says so.
-See [`docs/mem0-comparison.md`](docs/mem0-comparison.md).
+**Measured results** (both on `redis/redis-stack`, same embedding model):
+
+| | mem0 | EventMem |
+|---|---|---|
+| recall@5 | 0.833 | 0.847 (tie) |
+| coverage of reachable deliveries | 0.571 | **1.000** |
+| retrievals spent to get there | 11 | **0** |
+| facts learned without asking | 0 | **40** |
+| search / write latency, median | 47-61 / 88-101 ms | **20-26 / 27-30 ms** |
+| Redis commands | **115** | 212 |
+
+Retrieval quality **ties**, which is the result worth having: both sides embed
+with the same model, so it shows push costs nothing in retrieval quality. mem0
+uses fewer Redis commands. Neither system can exceed 0.636 coverage of
+*required* deliveries on this corpus, because 16 of the 44 name an agent that
+declared no interest in that topic - the standing cost of selective routing,
+reported rather than hidden. mem0 ran with `infer=False`, so its LLM
+fact-extraction, contradiction detection and graph memory were off and
+EventMem has no equivalent of any of them.
+
+Full numbers and the three measurement bugs found while producing them:
+[`docs/mem0-results.md`](docs/mem0-results.md). Method:
+[`docs/mem0-comparison.md`](docs/mem0-comparison.md).
 
 ---
 

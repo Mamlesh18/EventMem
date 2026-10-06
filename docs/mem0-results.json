@@ -1,0 +1,2705 @@
+{
+  "namespace": "bench341a5b5f",
+  "environment": {
+    "redis_reachable": true,
+    "redisearch": true,
+    "redis_modules": [
+      "search",
+      "rediscompat",
+      "timeseries",
+      "bf",
+      "redisgears_2",
+      "rejson"
+    ],
+    "mem0_store": "redis",
+    "embed_model": "all-MiniLM-L6-v2",
+    "python": "3.11.9",
+    "both_on_redis": true
+  },
+  "corpus": {
+    "agents": 5,
+    "facts": 32,
+    "queries": 12,
+    "topics": 5,
+    "required_deliveries": 44,
+    "reachable_deliveries": 28,
+    "routing_ceiling": 0.6364,
+    "labelled_relevant_pairs": 30
+  },
+  "rows": [
+    {
+      "system": "mem0",
+      "facts_written": 32,
+      "median_write_ms": 87.674,
+      "mean_write_ms": 88.92,
+      "p95_write_ms": 114.937,
+      "total_wall_ms": 2848.1,
+      "embed_calls": 87,
+      "pushes": 0,
+      "required_deliveries": 44,
+      "satisfied": 19,
+      "coverage": 0.4318,
+      "reachable_deliveries": 28,
+      "coverage_of_reachable": 0.5714,
+      "retrievals_spent": 11,
+      "retrievals_per_fact_learned": 0.5789,
+      "learned_without_asking": 0,
+      "mean_push_latency_ms": NaN,
+      "p95_push_latency_ms": NaN,
+      "can_react_to_another_agents_write": false,
+      "queries": 12,
+      "k": 5,
+      "precision_at_5": 0.4167,
+      "recall_at_5": 0.8333,
+      "mrr": 1.0,
+      "median_search_ms": 60.89,
+      "mean_search_ms": 61.518,
+      "p95_search_ms": 70.15,
+      "vector_searches": 23,
+      "llm_calls": 0,
+      "redis_commands": 115,
+      "redis_counters_reset": false
+    },
+    {
+      "system": "eventmem",
+      "facts_written": 32,
+      "median_write_ms": 26.572,
+      "mean_write_ms": 26.715,
+      "p95_write_ms": 32.923,
+      "total_wall_ms": 903.6,
+      "embed_calls": 44,
+      "pushes": 41,
+      "required_deliveries": 44,
+      "satisfied": 28,
+      "coverage": 0.6364,
+      "reachable_deliveries": 28,
+      "coverage_of_reachable": 1.0,
+      "retrievals_spent": 0,
+      "retrievals_per_fact_learned": 0.0,
+      "learned_without_asking": 40,
+      "mean_push_latency_ms": 7.121,
+      "p95_push_latency_ms": 11.507,
+      "can_react_to_another_agents_write": true,
+      "queries": 12,
+      "k": 5,
+      "precision_at_5": 0.4167,
+      "recall_at_5": 0.8472,
+      "mrr": 1.0,
+      "median_search_ms": 19.647,
+      "mean_search_ms": 22.465,
+      "p95_search_ms": 47.289,
+      "vector_searches": 12,
+      "llm_calls": 0,
+      "redis_commands": 212,
+      "redis_counters_reset": false
+    }
+  ],
+  "verdicts": [
+    {
+      "kind": "tie",
+      "title": "Retrieval quality ties (recall@5 0.83 vs 0.85)",
+      "body": "Both run the same embedding model over the same corpus, so this is the expected result and the one worth having: adding push does not cost retrieval quality."
+    },
+    {
+      "kind": "win",
+      "title": "Propagation coverage 64% (EventMem) vs 43% (mem0)",
+      "body": "EventMem spent 0 retrievals to get there; mem0 spent 11. The pull system was given one search per declared interest, which is a generous reading of how it is used, and it still has to know to go looking."
+    },
+    {
+      "kind": "caveat",
+      "title": "Neither can exceed 64% on this corpus",
+      "body": "16 of the 44 required deliveries name an agent that never declared an interest in that fact's topic, so no interest-based router can deliver them. Against only the 28 reachable ones, EventMem got 100% and mem0 got 57% - that is the number that isolates routing and transport from how well the interests were written."
+    },
+    {
+      "kind": "capability",
+      "title": "40 facts reached an agent without it asking",
+      "body": "mem0 scores zero here by construction, not by failing: a passive store has no way to notify. This is a capability difference, not a performance one."
+    },
+    {
+      "kind": "info",
+      "title": "Redis commands: 212 (EventMem) vs 115 (mem0)",
+      "body": "Counted from the server's own INFO commandstats. EventMem pays extra commands to push; mem0 pays them to search. Which is cheaper depends entirely on the read/write ratio of your workload."
+    },
+    {
+      "kind": "caveat",
+      "title": "What this does not measure",
+      "body": "mem0 ran with infer=False, so its LLM fact-extraction, contradiction detection and memory-update logic were switched off. Those are its headline features and EventMem has no equivalent. This benchmark covers retrieval and propagation only."
+    }
+  ],
+  "detail": {
+    "mem0": {
+      "ingest": {
+        "metrics": {
+          "facts_written": 32,
+          "median_write_ms": 87.674,
+          "mean_write_ms": 88.92,
+          "p95_write_ms": 114.937,
+          "total_wall_ms": 2848.1,
+          "embed_calls": 64,
+          "pushes": 0
+        },
+        "detail": []
+      },
+      "propagation": {
+        "metrics": {
+          "required_deliveries": 44,
+          "satisfied": 19,
+          "coverage": 0.4318,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 0.5714,
+          "retrievals_spent": 11,
+          "retrievals_per_fact_learned": 0.5789
+        },
+        "detail": [
+          {
+            "agent": "architect",
+            "needed": 9,
+            "held": 2,
+            "coverage": 0.2222,
+            "missing": [
+              "f05",
+              "f08",
+              "f17",
+              "f22",
+              "f23",
+              "f24",
+              "f28"
+            ]
+          },
+          {
+            "agent": "backend",
+            "needed": 16,
+            "held": 6,
+            "coverage": 0.375,
+            "missing": [
+              "f02",
+              "f06",
+              "f07",
+              "f16",
+              "f17",
+              "f19",
+              "f24",
+              "f25",
+              "f27",
+              "f32"
+            ]
+          },
+          {
+            "agent": "frontend",
+            "needed": 8,
+            "held": 4,
+            "coverage": 0.5,
+            "missing": [
+              "f02",
+              "f08",
+              "f09",
+              "f12"
+            ]
+          },
+          {
+            "agent": "security",
+            "needed": 6,
+            "held": 4,
+            "coverage": 0.6667,
+            "missing": [
+              "f21",
+              "f23"
+            ]
+          },
+          {
+            "agent": "sre",
+            "needed": 5,
+            "held": 3,
+            "coverage": 0.6,
+            "missing": [
+              "f11",
+              "f16"
+            ]
+          }
+        ]
+      },
+      "reactivity": {
+        "metrics": {
+          "learned_without_asking": 0,
+          "mean_push_latency_ms": NaN,
+          "p95_push_latency_ms": NaN,
+          "can_react_to_another_agents_write": false
+        },
+        "detail": []
+      },
+      "retrieval": {
+        "metrics": {
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8333,
+          "mrr": 1.0,
+          "median_search_ms": 60.89,
+          "mean_search_ms": 61.518,
+          "p95_search_ms": 70.15
+        },
+        "detail": [
+          {
+            "query_id": "q01",
+            "query": "How does the system prevent two patients booking the same slot?",
+            "relevant": [
+              "f01",
+              "f04",
+              "f08"
+            ],
+            "returned": [
+              "f04",
+              "f01",
+              "f08",
+              "f27",
+              "f02"
+            ],
+            "latency_ms": 65.484,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q02",
+            "query": "What are the known SQL injection or unsafe input problems?",
+            "relevant": [
+              "f15",
+              "f16"
+            ],
+            "returned": [
+              "f15",
+              "f30",
+              "f04",
+              "f20",
+              "f13"
+            ],
+            "latency_ms": 70.15,
+            "precision": 0.2,
+            "recall": 0.5,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q03",
+            "query": "How is authentication and session expiry handled?",
+            "relevant": [
+              "f10",
+              "f18"
+            ],
+            "returned": [
+              "f18",
+              "f26",
+              "f05",
+              "f02",
+              "f21"
+            ],
+            "latency_ms": 60.899,
+            "precision": 0.2,
+            "recall": 0.5,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q04",
+            "query": "What do I need to know about pagination and rate limits when calling the API?",
+            "relevant": [
+              "f09",
+              "f11",
+              "f12"
+            ],
+            "returned": [
+              "f11",
+              "f25",
+              "f09",
+              "f10",
+              "f15"
+            ],
+            "latency_ms": 61.018,
+            "precision": 0.4,
+            "recall": 0.6667,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q05",
+            "query": "How are webhooks secured?",
+            "relevant": [
+              "f14",
+              "f19"
+            ],
+            "returned": [
+              "f14",
+              "f19",
+              "f20",
+              "f10",
+              "f15"
+            ],
+            "latency_ms": 59.31,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q06",
+            "query": "What time zone handling is in place?",
+            "relevant": [
+              "f02",
+              "f28"
+            ],
+            "returned": [
+              "f28",
+              "f02",
+              "f08",
+              "f06",
+              "f27"
+            ],
+            "latency_ms": 58.513,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q07",
+            "query": "What are our disaster recovery and backup risks?",
+            "relevant": [
+              "f22",
+              "f23",
+              "f24"
+            ],
+            "returned": [
+              "f23",
+              "f26",
+              "f24",
+              "f22",
+              "f03"
+            ],
+            "latency_ms": 58.119,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q08",
+            "query": "Which issues could let one tenant read another tenant's data?",
+            "relevant": [
+              "f17",
+              "f20"
+            ],
+            "returned": [
+              "f17",
+              "f20",
+              "f22",
+              "f04",
+              "f26"
+            ],
+            "latency_ms": 65.742,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q09",
+            "query": "What compliance gaps do we have?",
+            "relevant": [
+              "f05",
+              "f20",
+              "f26"
+            ],
+            "returned": [
+              "f26",
+              "f05",
+              "warmup",
+              "f30",
+              "f20"
+            ],
+            "latency_ms": 60.882,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q10",
+            "query": "What performance problems have been reported?",
+            "relevant": [
+              "f06",
+              "f25",
+              "f31"
+            ],
+            "returned": [
+              "f25",
+              "f08",
+              "f11",
+              "f13",
+              "f30"
+            ],
+            "latency_ms": 65.973,
+            "precision": 0.2,
+            "recall": 0.3333,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q11",
+            "query": "How should a client handle a duplicate booking submission?",
+            "relevant": [
+              "f08",
+              "f10",
+              "f32"
+            ],
+            "returned": [
+              "f08",
+              "f04",
+              "f15",
+              "f10",
+              "f32"
+            ],
+            "latency_ms": 57.455,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q12",
+            "query": "What is expiring or needs renewal soon?",
+            "relevant": [
+              "f05",
+              "f21"
+            ],
+            "returned": [
+              "f05",
+              "f21",
+              "f12",
+              "f18",
+              "f27"
+            ],
+            "latency_ms": 54.668,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          }
+        ]
+      }
+    },
+    "eventmem": {
+      "ingest": {
+        "metrics": {
+          "facts_written": 32,
+          "median_write_ms": 26.572,
+          "mean_write_ms": 26.715,
+          "p95_write_ms": 32.923,
+          "total_wall_ms": 903.6,
+          "embed_calls": 32,
+          "pushes": 41
+        },
+        "detail": []
+      },
+      "propagation": {
+        "metrics": {
+          "required_deliveries": 44,
+          "satisfied": 28,
+          "coverage": 0.6364,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 1.0,
+          "retrievals_spent": 0,
+          "retrievals_per_fact_learned": 0.0
+        },
+        "detail": [
+          {
+            "agent": "architect",
+            "needed": 9,
+            "held": 3,
+            "coverage": 0.3333,
+            "missing": [
+              "f15",
+              "f17",
+              "f22",
+              "f23",
+              "f24",
+              "f28"
+            ]
+          },
+          {
+            "agent": "backend",
+            "needed": 16,
+            "held": 12,
+            "coverage": 0.75,
+            "missing": [
+              "f24",
+              "f25",
+              "f27",
+              "f32"
+            ]
+          },
+          {
+            "agent": "frontend",
+            "needed": 8,
+            "held": 7,
+            "coverage": 0.875,
+            "missing": [
+              "f02"
+            ]
+          },
+          {
+            "agent": "security",
+            "needed": 6,
+            "held": 3,
+            "coverage": 0.5,
+            "missing": [
+              "f21",
+              "f23",
+              "f26"
+            ]
+          },
+          {
+            "agent": "sre",
+            "needed": 5,
+            "held": 3,
+            "coverage": 0.6,
+            "missing": [
+              "f06",
+              "f11"
+            ]
+          }
+        ]
+      },
+      "reactivity": {
+        "metrics": {
+          "learned_without_asking": 40,
+          "mean_push_latency_ms": 7.121,
+          "p95_push_latency_ms": 11.507,
+          "can_react_to_another_agents_write": true
+        },
+        "detail": []
+      },
+      "retrieval": {
+        "metrics": {
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8472,
+          "mrr": 1.0,
+          "median_search_ms": 19.647,
+          "mean_search_ms": 22.465,
+          "p95_search_ms": 47.289
+        },
+        "detail": [
+          {
+            "query_id": "q01",
+            "query": "How does the system prevent two patients booking the same slot?",
+            "relevant": [
+              "f01",
+              "f04",
+              "f08"
+            ],
+            "returned": [
+              "f04",
+              "f01",
+              "f08",
+              "f27",
+              "f02"
+            ],
+            "latency_ms": 19.625,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q02",
+            "query": "What are the known SQL injection or unsafe input problems?",
+            "relevant": [
+              "f15",
+              "f16"
+            ],
+            "returned": [
+              "f15",
+              "f20",
+              "f30",
+              "f16",
+              "f04"
+            ],
+            "latency_ms": 17.953,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q03",
+            "query": "How is authentication and session expiry handled?",
+            "relevant": [
+              "f10",
+              "f18"
+            ],
+            "returned": [
+              "f18",
+              "f26",
+              "f05",
+              "f02",
+              "f21"
+            ],
+            "latency_ms": 17.119,
+            "precision": 0.2,
+            "recall": 0.5,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q04",
+            "query": "What do I need to know about pagination and rate limits when calling the API?",
+            "relevant": [
+              "f09",
+              "f11",
+              "f12"
+            ],
+            "returned": [
+              "f11",
+              "f09",
+              "f25",
+              "f12",
+              "f10"
+            ],
+            "latency_ms": 19.099,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q05",
+            "query": "How are webhooks secured?",
+            "relevant": [
+              "f14",
+              "f19"
+            ],
+            "returned": [
+              "f19",
+              "f14",
+              "f15",
+              "f20",
+              "f18"
+            ],
+            "latency_ms": 17.516,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q06",
+            "query": "What time zone handling is in place?",
+            "relevant": [
+              "f02",
+              "f28"
+            ],
+            "returned": [
+              "f28",
+              "f02",
+              "f26",
+              "f08",
+              "f23"
+            ],
+            "latency_ms": 15.916,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q07",
+            "query": "What are our disaster recovery and backup risks?",
+            "relevant": [
+              "f22",
+              "f23",
+              "f24"
+            ],
+            "returned": [
+              "f23",
+              "f26",
+              "f24",
+              "f22",
+              "f03"
+            ],
+            "latency_ms": 28.635,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q08",
+            "query": "Which issues could let one tenant read another tenant's data?",
+            "relevant": [
+              "f17",
+              "f20"
+            ],
+            "returned": [
+              "f17",
+              "f20",
+              "f22",
+              "f26",
+              "f15"
+            ],
+            "latency_ms": 47.289,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          },
+          {
+            "query_id": "q09",
+            "query": "What compliance gaps do we have?",
+            "relevant": [
+              "f05",
+              "f20",
+              "f26"
+            ],
+            "returned": [
+              "f26",
+              "f05",
+              "f20",
+              "warmup",
+              "f30"
+            ],
+            "latency_ms": 24.605,
+            "precision": 0.6,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 3
+          },
+          {
+            "query_id": "q10",
+            "query": "What performance problems have been reported?",
+            "relevant": [
+              "f06",
+              "f25",
+              "f31"
+            ],
+            "returned": [
+              "f25",
+              "f27",
+              "f08",
+              "f30",
+              "f11"
+            ],
+            "latency_ms": 21.483,
+            "precision": 0.2,
+            "recall": 0.3333,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q11",
+            "query": "How should a client handle a duplicate booking submission?",
+            "relevant": [
+              "f08",
+              "f10",
+              "f32"
+            ],
+            "returned": [
+              "f08",
+              "f04",
+              "f15",
+              "f01",
+              "f07"
+            ],
+            "latency_ms": 20.672,
+            "precision": 0.2,
+            "recall": 0.3333,
+            "rr": 1.0,
+            "hits": 1
+          },
+          {
+            "query_id": "q12",
+            "query": "What is expiring or needs renewal soon?",
+            "relevant": [
+              "f05",
+              "f21"
+            ],
+            "returned": [
+              "f21",
+              "f05",
+              "f26",
+              "f12",
+              "f18"
+            ],
+            "latency_ms": 19.668,
+            "precision": 0.4,
+            "recall": 1.0,
+            "rr": 1.0,
+            "hits": 2
+          }
+        ]
+      }
+    }
+  },
+  "events": [
+    {
+      "namespace": "bench341a5b5f",
+      "redis_url": "redis://localhost:6380",
+      "embed_model": "all-MiniLM-L6-v2",
+      "mem0_store": "redis",
+      "k": 5,
+      "corpus": {
+        "agents": 5,
+        "facts": 32,
+        "queries": 12,
+        "topics": 5,
+        "required_deliveries": 44,
+        "reachable_deliveries": 28,
+        "routing_ceiling": 0.6364,
+        "labelled_relevant_pairs": 30
+      },
+      "environment": {
+        "redis_reachable": true,
+        "redisearch": true,
+        "redis_modules": [
+          "search",
+          "rediscompat",
+          "timeseries",
+          "bf",
+          "redisgears_2",
+          "rejson"
+        ],
+        "mem0_store": "redis",
+        "embed_model": "all-MiniLM-L6-v2",
+        "python": "3.11.9",
+        "both_on_redis": true
+      },
+      "kind": "run_start",
+      "t": 1791293613.6548114
+    },
+    {
+      "message": "namespace bench341a5b5f prepared (0 stale keys removed)",
+      "kind": "log",
+      "t": 1791293613.678334
+    },
+    {
+      "system": "mem0",
+      "label": "mem0 (pull: add + search)",
+      "mode": "pull",
+      "kind": "system_start",
+      "t": 1791293613.678334
+    },
+    {
+      "phase": "warmup",
+      "system": "mem0",
+      "total": 2,
+      "kind": "phase_start",
+      "t": 1791293642.2138188
+    },
+    {
+      "phase": "warmup",
+      "system": "mem0",
+      "metrics": {
+        "warmed": true
+      },
+      "kind": "phase_done",
+      "t": 1791293642.4537258
+    },
+    {
+      "phase": "ingest",
+      "system": "mem0",
+      "total": 32,
+      "kind": "phase_start",
+      "t": 1791293642.4537258
+    },
+    {
+      "system": "mem0",
+      "done": 1,
+      "total": 32,
+      "fact_id": "f01",
+      "latency_ms": 74.104,
+      "kind": "ingest_progress",
+      "t": 1791293642.526773
+    },
+    {
+      "system": "mem0",
+      "done": 2,
+      "total": 32,
+      "fact_id": "f02",
+      "latency_ms": 76.148,
+      "kind": "ingest_progress",
+      "t": 1791293642.6033394
+    },
+    {
+      "system": "mem0",
+      "done": 3,
+      "total": 32,
+      "fact_id": "f03",
+      "latency_ms": 72.213,
+      "kind": "ingest_progress",
+      "t": 1791293642.6766815
+    },
+    {
+      "system": "mem0",
+      "done": 4,
+      "total": 32,
+      "fact_id": "f04",
+      "latency_ms": 72.751,
+      "kind": "ingest_progress",
+      "t": 1791293642.7488637
+    },
+    {
+      "system": "mem0",
+      "done": 5,
+      "total": 32,
+      "fact_id": "f05",
+      "latency_ms": 68.811,
+      "kind": "ingest_progress",
+      "t": 1791293642.8183823
+    },
+    {
+      "system": "mem0",
+      "done": 6,
+      "total": 32,
+      "fact_id": "f06",
+      "latency_ms": 70.458,
+      "kind": "ingest_progress",
+      "t": 1791293642.8883934
+    },
+    {
+      "system": "mem0",
+      "done": 7,
+      "total": 32,
+      "fact_id": "f07",
+      "latency_ms": 77.754,
+      "kind": "ingest_progress",
+      "t": 1791293642.9655085
+    },
+    {
+      "system": "mem0",
+      "done": 8,
+      "total": 32,
+      "fact_id": "f08",
+      "latency_ms": 73.592,
+      "kind": "ingest_progress",
+      "t": 1791293643.0402453
+    },
+    {
+      "system": "mem0",
+      "done": 9,
+      "total": 32,
+      "fact_id": "f09",
+      "latency_ms": 83.263,
+      "kind": "ingest_progress",
+      "t": 1791293643.1229668
+    },
+    {
+      "system": "mem0",
+      "done": 10,
+      "total": 32,
+      "fact_id": "f10",
+      "latency_ms": 99.617,
+      "kind": "ingest_progress",
+      "t": 1791293643.223086
+    },
+    {
+      "system": "mem0",
+      "done": 11,
+      "total": 32,
+      "fact_id": "f11",
+      "latency_ms": 99.819,
+      "kind": "ingest_progress",
+      "t": 1791293643.323359
+    },
+    {
+      "system": "mem0",
+      "done": 12,
+      "total": 32,
+      "fact_id": "f12",
+      "latency_ms": 92.023,
+      "kind": "ingest_progress",
+      "t": 1791293643.4150195
+    },
+    {
+      "system": "mem0",
+      "done": 13,
+      "total": 32,
+      "fact_id": "f13",
+      "latency_ms": 101.06,
+      "kind": "ingest_progress",
+      "t": 1791293643.5153189
+    },
+    {
+      "system": "mem0",
+      "done": 14,
+      "total": 32,
+      "fact_id": "f14",
+      "latency_ms": 92.029,
+      "kind": "ingest_progress",
+      "t": 1791293643.6075084
+    },
+    {
+      "system": "mem0",
+      "done": 15,
+      "total": 32,
+      "fact_id": "f15",
+      "latency_ms": 90.842,
+      "kind": "ingest_progress",
+      "t": 1791293643.6990418
+    },
+    {
+      "system": "mem0",
+      "done": 16,
+      "total": 32,
+      "fact_id": "f16",
+      "latency_ms": 83.991,
+      "kind": "ingest_progress",
+      "t": 1791293643.7836106
+    },
+    {
+      "system": "mem0",
+      "done": 17,
+      "total": 32,
+      "fact_id": "f17",
+      "latency_ms": 98.48,
+      "kind": "ingest_progress",
+      "t": 1791293643.8813558
+    },
+    {
+      "system": "mem0",
+      "done": 18,
+      "total": 32,
+      "fact_id": "f18",
+      "latency_ms": 83.873,
+      "kind": "ingest_progress",
+      "t": 1791293643.965798
+    },
+    {
+      "system": "mem0",
+      "done": 19,
+      "total": 32,
+      "fact_id": "f19",
+      "latency_ms": 91.568,
+      "kind": "ingest_progress",
+      "t": 1791293644.0574899
+    },
+    {
+      "system": "mem0",
+      "done": 20,
+      "total": 32,
+      "fact_id": "f20",
+      "latency_ms": 86.339,
+      "kind": "ingest_progress",
+      "t": 1791293644.143966
+    },
+    {
+      "system": "mem0",
+      "done": 21,
+      "total": 32,
+      "fact_id": "f21",
+      "latency_ms": 89.074,
+      "kind": "ingest_progress",
+      "t": 1791293644.233085
+    },
+    {
+      "system": "mem0",
+      "done": 22,
+      "total": 32,
+      "fact_id": "f22",
+      "latency_ms": 89.009,
+      "kind": "ingest_progress",
+      "t": 1791293644.3221173
+    },
+    {
+      "system": "mem0",
+      "done": 23,
+      "total": 32,
+      "fact_id": "f23",
+      "latency_ms": 89.222,
+      "kind": "ingest_progress",
+      "t": 1791293644.411283
+    },
+    {
+      "system": "mem0",
+      "done": 24,
+      "total": 32,
+      "fact_id": "f24",
+      "latency_ms": 84.488,
+      "kind": "ingest_progress",
+      "t": 1791293644.4950218
+    },
+    {
+      "system": "mem0",
+      "done": 25,
+      "total": 32,
+      "fact_id": "f25",
+      "latency_ms": 84.584,
+      "kind": "ingest_progress",
+      "t": 1791293644.5803258
+    },
+    {
+      "system": "mem0",
+      "done": 26,
+      "total": 32,
+      "fact_id": "f26",
+      "latency_ms": 114.937,
+      "kind": "ingest_progress",
+      "t": 1791293644.69587
+    },
+    {
+      "system": "mem0",
+      "done": 27,
+      "total": 32,
+      "fact_id": "f27",
+      "latency_ms": 99.961,
+      "kind": "ingest_progress",
+      "t": 1791293644.795265
+    },
+    {
+      "system": "mem0",
+      "done": 28,
+      "total": 32,
+      "fact_id": "f28",
+      "latency_ms": 84.339,
+      "kind": "ingest_progress",
+      "t": 1791293644.8799307
+    },
+    {
+      "system": "mem0",
+      "done": 29,
+      "total": 32,
+      "fact_id": "f29",
+      "latency_ms": 83.648,
+      "kind": "ingest_progress",
+      "t": 1791293644.9640207
+    },
+    {
+      "system": "mem0",
+      "done": 30,
+      "total": 32,
+      "fact_id": "f30",
+      "latency_ms": 105.597,
+      "kind": "ingest_progress",
+      "t": 1791293645.0699568
+    },
+    {
+      "system": "mem0",
+      "done": 31,
+      "total": 32,
+      "fact_id": "f31",
+      "latency_ms": 140.323,
+      "kind": "ingest_progress",
+      "t": 1791293645.2098942
+    },
+    {
+      "system": "mem0",
+      "done": 32,
+      "total": 32,
+      "fact_id": "f32",
+      "latency_ms": 91.518,
+      "kind": "ingest_progress",
+      "t": 1791293645.3007169
+    },
+    {
+      "phase": "ingest",
+      "system": "mem0",
+      "metrics": {
+        "facts_written": 32,
+        "median_write_ms": 87.674,
+        "mean_write_ms": 88.92,
+        "p95_write_ms": 114.937,
+        "total_wall_ms": 2848.1,
+        "embed_calls": 64,
+        "pushes": 0
+      },
+      "kind": "phase_done",
+      "t": 1791293645.3020782
+    },
+    {
+      "phase": "propagation",
+      "system": "mem0",
+      "total": 5,
+      "kind": "phase_start",
+      "t": 1791293645.3020782
+    },
+    {
+      "system": "mem0",
+      "agent": "architect",
+      "searches": 2,
+      "kind": "propagation_progress",
+      "t": 1791293645.4230442
+    },
+    {
+      "system": "mem0",
+      "agent": "backend",
+      "searches": 3,
+      "kind": "propagation_progress",
+      "t": 1791293645.6076221
+    },
+    {
+      "system": "mem0",
+      "agent": "frontend",
+      "searches": 2,
+      "kind": "propagation_progress",
+      "t": 1791293645.7228472
+    },
+    {
+      "system": "mem0",
+      "agent": "security",
+      "searches": 2,
+      "kind": "propagation_progress",
+      "t": 1791293645.8392007
+    },
+    {
+      "system": "mem0",
+      "agent": "sre",
+      "searches": 2,
+      "kind": "propagation_progress",
+      "t": 1791293645.9605248
+    },
+    {
+      "phase": "propagation",
+      "system": "mem0",
+      "metrics": {
+        "required_deliveries": 44,
+        "satisfied": 19,
+        "coverage": 0.4318,
+        "reachable_deliveries": 28,
+        "coverage_of_reachable": 0.5714,
+        "retrievals_spent": 11,
+        "retrievals_per_fact_learned": 0.5789
+      },
+      "detail": [
+        {
+          "agent": "architect",
+          "needed": 9,
+          "held": 2,
+          "coverage": 0.2222,
+          "missing": [
+            "f05",
+            "f08",
+            "f17",
+            "f22",
+            "f23",
+            "f24",
+            "f28"
+          ]
+        },
+        {
+          "agent": "backend",
+          "needed": 16,
+          "held": 6,
+          "coverage": 0.375,
+          "missing": [
+            "f02",
+            "f06",
+            "f07",
+            "f16",
+            "f17",
+            "f19",
+            "f24",
+            "f25",
+            "f27",
+            "f32"
+          ]
+        },
+        {
+          "agent": "frontend",
+          "needed": 8,
+          "held": 4,
+          "coverage": 0.5,
+          "missing": [
+            "f02",
+            "f08",
+            "f09",
+            "f12"
+          ]
+        },
+        {
+          "agent": "security",
+          "needed": 6,
+          "held": 4,
+          "coverage": 0.6667,
+          "missing": [
+            "f21",
+            "f23"
+          ]
+        },
+        {
+          "agent": "sre",
+          "needed": 5,
+          "held": 3,
+          "coverage": 0.6,
+          "missing": [
+            "f11",
+            "f16"
+          ]
+        }
+      ],
+      "kind": "phase_done",
+      "t": 1791293645.9605248
+    },
+    {
+      "phase": "reactivity",
+      "system": "mem0",
+      "total": 1,
+      "kind": "phase_start",
+      "t": 1791293645.9605248
+    },
+    {
+      "phase": "reactivity",
+      "system": "mem0",
+      "metrics": {
+        "learned_without_asking": 0,
+        "mean_push_latency_ms": NaN,
+        "p95_push_latency_ms": NaN,
+        "can_react_to_another_agents_write": false
+      },
+      "kind": "phase_done",
+      "t": 1791293645.9605248
+    },
+    {
+      "phase": "retrieval",
+      "system": "mem0",
+      "total": 12,
+      "kind": "phase_start",
+      "t": 1791293645.9605248
+    },
+    {
+      "system": "mem0",
+      "done": 1,
+      "total": 12,
+      "query_id": "q01",
+      "query": "How does the system prevent two patients booking the same slot?",
+      "relevant": [
+        "f01",
+        "f04",
+        "f08"
+      ],
+      "returned": [
+        "f04",
+        "f01",
+        "f08",
+        "f27",
+        "f02"
+      ],
+      "latency_ms": 65.484,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293646.026307
+    },
+    {
+      "system": "mem0",
+      "done": 2,
+      "total": 12,
+      "query_id": "q02",
+      "query": "What are the known SQL injection or unsafe input problems?",
+      "relevant": [
+        "f15",
+        "f16"
+      ],
+      "returned": [
+        "f15",
+        "f30",
+        "f04",
+        "f20",
+        "f13"
+      ],
+      "latency_ms": 70.15,
+      "precision": 0.2,
+      "recall": 0.5,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293646.0961466
+    },
+    {
+      "system": "mem0",
+      "done": 3,
+      "total": 12,
+      "query_id": "q03",
+      "query": "How is authentication and session expiry handled?",
+      "relevant": [
+        "f10",
+        "f18"
+      ],
+      "returned": [
+        "f18",
+        "f26",
+        "f05",
+        "f02",
+        "f21"
+      ],
+      "latency_ms": 60.899,
+      "precision": 0.2,
+      "recall": 0.5,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293646.1577878
+    },
+    {
+      "system": "mem0",
+      "done": 4,
+      "total": 12,
+      "query_id": "q04",
+      "query": "What do I need to know about pagination and rate limits when calling the API?",
+      "relevant": [
+        "f09",
+        "f11",
+        "f12"
+      ],
+      "returned": [
+        "f11",
+        "f25",
+        "f09",
+        "f10",
+        "f15"
+      ],
+      "latency_ms": 61.018,
+      "precision": 0.4,
+      "recall": 0.6667,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293646.2187378
+    },
+    {
+      "system": "mem0",
+      "done": 5,
+      "total": 12,
+      "query_id": "q05",
+      "query": "How are webhooks secured?",
+      "relevant": [
+        "f14",
+        "f19"
+      ],
+      "returned": [
+        "f14",
+        "f19",
+        "f20",
+        "f10",
+        "f15"
+      ],
+      "latency_ms": 59.31,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293646.2780404
+    },
+    {
+      "system": "mem0",
+      "done": 6,
+      "total": 12,
+      "query_id": "q06",
+      "query": "What time zone handling is in place?",
+      "relevant": [
+        "f02",
+        "f28"
+      ],
+      "returned": [
+        "f28",
+        "f02",
+        "f08",
+        "f06",
+        "f27"
+      ],
+      "latency_ms": 58.513,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293646.3368125
+    },
+    {
+      "system": "mem0",
+      "done": 7,
+      "total": 12,
+      "query_id": "q07",
+      "query": "What are our disaster recovery and backup risks?",
+      "relevant": [
+        "f22",
+        "f23",
+        "f24"
+      ],
+      "returned": [
+        "f23",
+        "f26",
+        "f24",
+        "f22",
+        "f03"
+      ],
+      "latency_ms": 58.119,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293646.3950412
+    },
+    {
+      "system": "mem0",
+      "done": 8,
+      "total": 12,
+      "query_id": "q08",
+      "query": "Which issues could let one tenant read another tenant's data?",
+      "relevant": [
+        "f17",
+        "f20"
+      ],
+      "returned": [
+        "f17",
+        "f20",
+        "f22",
+        "f04",
+        "f26"
+      ],
+      "latency_ms": 65.742,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293646.4611082
+    },
+    {
+      "system": "mem0",
+      "done": 9,
+      "total": 12,
+      "query_id": "q09",
+      "query": "What compliance gaps do we have?",
+      "relevant": [
+        "f05",
+        "f20",
+        "f26"
+      ],
+      "returned": [
+        "f26",
+        "f05",
+        "warmup",
+        "f30",
+        "f20"
+      ],
+      "latency_ms": 60.882,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293646.5223908
+    },
+    {
+      "system": "mem0",
+      "done": 10,
+      "total": 12,
+      "query_id": "q10",
+      "query": "What performance problems have been reported?",
+      "relevant": [
+        "f06",
+        "f25",
+        "f31"
+      ],
+      "returned": [
+        "f25",
+        "f08",
+        "f11",
+        "f13",
+        "f30"
+      ],
+      "latency_ms": 65.973,
+      "precision": 0.2,
+      "recall": 0.3333,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293646.588545
+    },
+    {
+      "system": "mem0",
+      "done": 11,
+      "total": 12,
+      "query_id": "q11",
+      "query": "How should a client handle a duplicate booking submission?",
+      "relevant": [
+        "f08",
+        "f10",
+        "f32"
+      ],
+      "returned": [
+        "f08",
+        "f04",
+        "f15",
+        "f10",
+        "f32"
+      ],
+      "latency_ms": 57.455,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293646.646014
+    },
+    {
+      "system": "mem0",
+      "done": 12,
+      "total": 12,
+      "query_id": "q12",
+      "query": "What is expiring or needs renewal soon?",
+      "relevant": [
+        "f05",
+        "f21"
+      ],
+      "returned": [
+        "f05",
+        "f21",
+        "f12",
+        "f18",
+        "f27"
+      ],
+      "latency_ms": 54.668,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293646.7005246
+    },
+    {
+      "phase": "retrieval",
+      "system": "mem0",
+      "metrics": {
+        "queries": 12,
+        "k": 5,
+        "precision_at_5": 0.4167,
+        "recall_at_5": 0.8333,
+        "mrr": 1.0,
+        "median_search_ms": 60.89,
+        "mean_search_ms": 61.518,
+        "p95_search_ms": 70.15
+      },
+      "kind": "phase_done",
+      "t": 1791293646.7005246
+    },
+    {
+      "system": "mem0",
+      "costs": {
+        "embed_calls": 87,
+        "vector_searches": 23,
+        "llm_calls": 0,
+        "pushes": 0,
+        "redis_commands_total": 115,
+        "redis_counters_reset": false,
+        "redis_commands": {
+          "FT.SEARCH": 24,
+          "hgetall": 57,
+          "hset": 33,
+          "info": 1
+        }
+      },
+      "metrics": {
+        "ingest": {
+          "facts_written": 32,
+          "median_write_ms": 87.674,
+          "mean_write_ms": 88.92,
+          "p95_write_ms": 114.937,
+          "total_wall_ms": 2848.1,
+          "embed_calls": 64,
+          "pushes": 0
+        },
+        "propagation": {
+          "required_deliveries": 44,
+          "satisfied": 19,
+          "coverage": 0.4318,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 0.5714,
+          "retrievals_spent": 11,
+          "retrievals_per_fact_learned": 0.5789
+        },
+        "reactivity": {
+          "learned_without_asking": 0,
+          "mean_push_latency_ms": NaN,
+          "p95_push_latency_ms": NaN,
+          "can_react_to_another_agents_write": false
+        },
+        "retrieval": {
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8333,
+          "mrr": 1.0,
+          "median_search_ms": 60.89,
+          "mean_search_ms": 61.518,
+          "p95_search_ms": 70.15
+        }
+      },
+      "kind": "system_done",
+      "t": 1791293646.7035277
+    },
+    {
+      "system": "eventmem",
+      "label": "EventMem (push: publish + route)",
+      "mode": "push",
+      "kind": "system_start",
+      "t": 1791293646.7035277
+    },
+    {
+      "phase": "warmup",
+      "system": "eventmem",
+      "total": 2,
+      "kind": "phase_start",
+      "t": 1791293649.3083284
+    },
+    {
+      "phase": "warmup",
+      "system": "eventmem",
+      "metrics": {
+        "warmed": true
+      },
+      "kind": "phase_done",
+      "t": 1791293649.4084752
+    },
+    {
+      "phase": "ingest",
+      "system": "eventmem",
+      "total": 32,
+      "kind": "phase_start",
+      "t": 1791293649.4084752
+    },
+    {
+      "system": "eventmem",
+      "done": 1,
+      "total": 32,
+      "fact_id": "f01",
+      "latency_ms": 23.794,
+      "kind": "ingest_progress",
+      "t": 1791293649.432911
+    },
+    {
+      "system": "eventmem",
+      "done": 2,
+      "total": 32,
+      "fact_id": "f02",
+      "latency_ms": 23.78,
+      "kind": "ingest_progress",
+      "t": 1791293649.4568734
+    },
+    {
+      "system": "eventmem",
+      "done": 3,
+      "total": 32,
+      "fact_id": "f03",
+      "latency_ms": 26.618,
+      "kind": "ingest_progress",
+      "t": 1791293649.4844534
+    },
+    {
+      "system": "eventmem",
+      "done": 4,
+      "total": 32,
+      "fact_id": "f04",
+      "latency_ms": 27.357,
+      "kind": "ingest_progress",
+      "t": 1791293649.5121796
+    },
+    {
+      "system": "eventmem",
+      "done": 5,
+      "total": 32,
+      "fact_id": "f05",
+      "latency_ms": 25.136,
+      "kind": "ingest_progress",
+      "t": 1791293649.5366309
+    },
+    {
+      "system": "eventmem",
+      "done": 6,
+      "total": 32,
+      "fact_id": "f06",
+      "latency_ms": 27.205,
+      "kind": "ingest_progress",
+      "t": 1791293649.5648518
+    },
+    {
+      "system": "eventmem",
+      "done": 7,
+      "total": 32,
+      "fact_id": "f07",
+      "latency_ms": 25.858,
+      "kind": "ingest_progress",
+      "t": 1791293649.5907114
+    },
+    {
+      "system": "eventmem",
+      "done": 8,
+      "total": 32,
+      "fact_id": "f08",
+      "latency_ms": 28.864,
+      "kind": "ingest_progress",
+      "t": 1791293649.6196551
+    },
+    {
+      "system": "eventmem",
+      "done": 9,
+      "total": 32,
+      "fact_id": "f09",
+      "latency_ms": 30.943,
+      "kind": "ingest_progress",
+      "t": 1791293649.6517537
+    },
+    {
+      "system": "eventmem",
+      "done": 10,
+      "total": 32,
+      "fact_id": "f10",
+      "latency_ms": 30.476,
+      "kind": "ingest_progress",
+      "t": 1791293649.681349
+    },
+    {
+      "system": "eventmem",
+      "done": 11,
+      "total": 32,
+      "fact_id": "f11",
+      "latency_ms": 32.923,
+      "kind": "ingest_progress",
+      "t": 1791293649.71557
+    },
+    {
+      "system": "eventmem",
+      "done": 12,
+      "total": 32,
+      "fact_id": "f12",
+      "latency_ms": 36.727,
+      "kind": "ingest_progress",
+      "t": 1791293649.7526567
+    },
+    {
+      "system": "eventmem",
+      "done": 13,
+      "total": 32,
+      "fact_id": "f13",
+      "latency_ms": 31.61,
+      "kind": "ingest_progress",
+      "t": 1791293649.7839146
+    },
+    {
+      "system": "eventmem",
+      "done": 14,
+      "total": 32,
+      "fact_id": "f14",
+      "latency_ms": 30.113,
+      "kind": "ingest_progress",
+      "t": 1791293649.8151894
+    },
+    {
+      "system": "eventmem",
+      "done": 15,
+      "total": 32,
+      "fact_id": "f15",
+      "latency_ms": 30.498,
+      "kind": "ingest_progress",
+      "t": 1791293649.8454075
+    },
+    {
+      "system": "eventmem",
+      "done": 16,
+      "total": 32,
+      "fact_id": "f16",
+      "latency_ms": 26.429,
+      "kind": "ingest_progress",
+      "t": 1791293649.8727148
+    },
+    {
+      "system": "eventmem",
+      "done": 17,
+      "total": 32,
+      "fact_id": "f17",
+      "latency_ms": 27.928,
+      "kind": "ingest_progress",
+      "t": 1791293649.9009514
+    },
+    {
+      "system": "eventmem",
+      "done": 18,
+      "total": 32,
+      "fact_id": "f18",
+      "latency_ms": 29.954,
+      "kind": "ingest_progress",
+      "t": 1791293649.9310796
+    },
+    {
+      "system": "eventmem",
+      "done": 19,
+      "total": 32,
+      "fact_id": "f19",
+      "latency_ms": 29.214,
+      "kind": "ingest_progress",
+      "t": 1791293649.9601066
+    },
+    {
+      "system": "eventmem",
+      "done": 20,
+      "total": 32,
+      "fact_id": "f20",
+      "latency_ms": 26.526,
+      "kind": "ingest_progress",
+      "t": 1791293649.9874387
+    },
+    {
+      "system": "eventmem",
+      "done": 21,
+      "total": 32,
+      "fact_id": "f21",
+      "latency_ms": 22.776,
+      "kind": "ingest_progress",
+      "t": 1791293650.0102074
+    },
+    {
+      "system": "eventmem",
+      "done": 22,
+      "total": 32,
+      "fact_id": "f22",
+      "latency_ms": 21.209,
+      "kind": "ingest_progress",
+      "t": 1791293650.0318718
+    },
+    {
+      "system": "eventmem",
+      "done": 23,
+      "total": 32,
+      "fact_id": "f23",
+      "latency_ms": 21.708,
+      "kind": "ingest_progress",
+      "t": 1791293650.0530422
+    },
+    {
+      "system": "eventmem",
+      "done": 24,
+      "total": 32,
+      "fact_id": "f24",
+      "latency_ms": 28.176,
+      "kind": "ingest_progress",
+      "t": 1791293650.0816603
+    },
+    {
+      "system": "eventmem",
+      "done": 25,
+      "total": 32,
+      "fact_id": "f25",
+      "latency_ms": 25.967,
+      "kind": "ingest_progress",
+      "t": 1791293650.108115
+    },
+    {
+      "system": "eventmem",
+      "done": 26,
+      "total": 32,
+      "fact_id": "f26",
+      "latency_ms": 27.923,
+      "kind": "ingest_progress",
+      "t": 1791293650.1364987
+    },
+    {
+      "system": "eventmem",
+      "done": 27,
+      "total": 32,
+      "fact_id": "f27",
+      "latency_ms": 22.275,
+      "kind": "ingest_progress",
+      "t": 1791293650.158822
+    },
+    {
+      "system": "eventmem",
+      "done": 28,
+      "total": 32,
+      "fact_id": "f28",
+      "latency_ms": 23.652,
+      "kind": "ingest_progress",
+      "t": 1791293650.1824088
+    },
+    {
+      "system": "eventmem",
+      "done": 29,
+      "total": 32,
+      "fact_id": "f29",
+      "latency_ms": 21.034,
+      "kind": "ingest_progress",
+      "t": 1791293650.203848
+    },
+    {
+      "system": "eventmem",
+      "done": 30,
+      "total": 32,
+      "fact_id": "f30",
+      "latency_ms": 21.178,
+      "kind": "ingest_progress",
+      "t": 1791293650.2247045
+    },
+    {
+      "system": "eventmem",
+      "done": 31,
+      "total": 32,
+      "fact_id": "f31",
+      "latency_ms": 22.832,
+      "kind": "ingest_progress",
+      "t": 1791293650.2473419
+    },
+    {
+      "system": "eventmem",
+      "done": 32,
+      "total": 32,
+      "fact_id": "f32",
+      "latency_ms": 24.211,
+      "kind": "ingest_progress",
+      "t": 1791293650.271309
+    },
+    {
+      "phase": "ingest",
+      "system": "eventmem",
+      "metrics": {
+        "facts_written": 32,
+        "median_write_ms": 26.572,
+        "mean_write_ms": 26.715,
+        "p95_write_ms": 32.923,
+        "total_wall_ms": 903.6,
+        "embed_calls": 32,
+        "pushes": 41
+      },
+      "kind": "phase_done",
+      "t": 1791293650.3132997
+    },
+    {
+      "phase": "propagation",
+      "system": "eventmem",
+      "total": 5,
+      "kind": "phase_start",
+      "t": 1791293650.3132997
+    },
+    {
+      "system": "eventmem",
+      "agent": "architect",
+      "searches": 0,
+      "kind": "propagation_progress",
+      "t": 1791293650.3595023
+    },
+    {
+      "system": "eventmem",
+      "agent": "backend",
+      "searches": 0,
+      "kind": "propagation_progress",
+      "t": 1791293650.3595023
+    },
+    {
+      "system": "eventmem",
+      "agent": "frontend",
+      "searches": 0,
+      "kind": "propagation_progress",
+      "t": 1791293650.3595023
+    },
+    {
+      "system": "eventmem",
+      "agent": "security",
+      "searches": 0,
+      "kind": "propagation_progress",
+      "t": 1791293650.3595023
+    },
+    {
+      "system": "eventmem",
+      "agent": "sre",
+      "searches": 0,
+      "kind": "propagation_progress",
+      "t": 1791293650.3595023
+    },
+    {
+      "phase": "propagation",
+      "system": "eventmem",
+      "metrics": {
+        "required_deliveries": 44,
+        "satisfied": 28,
+        "coverage": 0.6364,
+        "reachable_deliveries": 28,
+        "coverage_of_reachable": 1.0,
+        "retrievals_spent": 0,
+        "retrievals_per_fact_learned": 0.0
+      },
+      "detail": [
+        {
+          "agent": "architect",
+          "needed": 9,
+          "held": 3,
+          "coverage": 0.3333,
+          "missing": [
+            "f15",
+            "f17",
+            "f22",
+            "f23",
+            "f24",
+            "f28"
+          ]
+        },
+        {
+          "agent": "backend",
+          "needed": 16,
+          "held": 12,
+          "coverage": 0.75,
+          "missing": [
+            "f24",
+            "f25",
+            "f27",
+            "f32"
+          ]
+        },
+        {
+          "agent": "frontend",
+          "needed": 8,
+          "held": 7,
+          "coverage": 0.875,
+          "missing": [
+            "f02"
+          ]
+        },
+        {
+          "agent": "security",
+          "needed": 6,
+          "held": 3,
+          "coverage": 0.5,
+          "missing": [
+            "f21",
+            "f23",
+            "f26"
+          ]
+        },
+        {
+          "agent": "sre",
+          "needed": 5,
+          "held": 3,
+          "coverage": 0.6,
+          "missing": [
+            "f06",
+            "f11"
+          ]
+        }
+      ],
+      "kind": "phase_done",
+      "t": 1791293650.3595023
+    },
+    {
+      "phase": "reactivity",
+      "system": "eventmem",
+      "total": 1,
+      "kind": "phase_start",
+      "t": 1791293650.3595023
+    },
+    {
+      "phase": "reactivity",
+      "system": "eventmem",
+      "metrics": {
+        "learned_without_asking": 40,
+        "mean_push_latency_ms": 7.121,
+        "p95_push_latency_ms": 11.507,
+        "can_react_to_another_agents_write": true
+      },
+      "kind": "phase_done",
+      "t": 1791293650.3595023
+    },
+    {
+      "phase": "retrieval",
+      "system": "eventmem",
+      "total": 12,
+      "kind": "phase_start",
+      "t": 1791293650.3595023
+    },
+    {
+      "system": "eventmem",
+      "done": 1,
+      "total": 12,
+      "query_id": "q01",
+      "query": "How does the system prevent two patients booking the same slot?",
+      "relevant": [
+        "f01",
+        "f04",
+        "f08"
+      ],
+      "returned": [
+        "f04",
+        "f01",
+        "f08",
+        "f27",
+        "f02"
+      ],
+      "latency_ms": 19.625,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293650.379564
+    },
+    {
+      "system": "eventmem",
+      "done": 2,
+      "total": 12,
+      "query_id": "q02",
+      "query": "What are the known SQL injection or unsafe input problems?",
+      "relevant": [
+        "f15",
+        "f16"
+      ],
+      "returned": [
+        "f15",
+        "f20",
+        "f30",
+        "f16",
+        "f04"
+      ],
+      "latency_ms": 17.953,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293650.3972023
+    },
+    {
+      "system": "eventmem",
+      "done": 3,
+      "total": 12,
+      "query_id": "q03",
+      "query": "How is authentication and session expiry handled?",
+      "relevant": [
+        "f10",
+        "f18"
+      ],
+      "returned": [
+        "f18",
+        "f26",
+        "f05",
+        "f02",
+        "f21"
+      ],
+      "latency_ms": 17.119,
+      "precision": 0.2,
+      "recall": 0.5,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293650.4147377
+    },
+    {
+      "system": "eventmem",
+      "done": 4,
+      "total": 12,
+      "query_id": "q04",
+      "query": "What do I need to know about pagination and rate limits when calling the API?",
+      "relevant": [
+        "f09",
+        "f11",
+        "f12"
+      ],
+      "returned": [
+        "f11",
+        "f09",
+        "f25",
+        "f12",
+        "f10"
+      ],
+      "latency_ms": 19.099,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293650.433865
+    },
+    {
+      "system": "eventmem",
+      "done": 5,
+      "total": 12,
+      "query_id": "q05",
+      "query": "How are webhooks secured?",
+      "relevant": [
+        "f14",
+        "f19"
+      ],
+      "returned": [
+        "f19",
+        "f14",
+        "f15",
+        "f20",
+        "f18"
+      ],
+      "latency_ms": 17.516,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293650.4519854
+    },
+    {
+      "system": "eventmem",
+      "done": 6,
+      "total": 12,
+      "query_id": "q06",
+      "query": "What time zone handling is in place?",
+      "relevant": [
+        "f02",
+        "f28"
+      ],
+      "returned": [
+        "f28",
+        "f02",
+        "f26",
+        "f08",
+        "f23"
+      ],
+      "latency_ms": 15.916,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293650.467856
+    },
+    {
+      "system": "eventmem",
+      "done": 7,
+      "total": 12,
+      "query_id": "q07",
+      "query": "What are our disaster recovery and backup risks?",
+      "relevant": [
+        "f22",
+        "f23",
+        "f24"
+      ],
+      "returned": [
+        "f23",
+        "f26",
+        "f24",
+        "f22",
+        "f03"
+      ],
+      "latency_ms": 28.635,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293650.4967077
+    },
+    {
+      "system": "eventmem",
+      "done": 8,
+      "total": 12,
+      "query_id": "q08",
+      "query": "Which issues could let one tenant read another tenant's data?",
+      "relevant": [
+        "f17",
+        "f20"
+      ],
+      "returned": [
+        "f17",
+        "f20",
+        "f22",
+        "f26",
+        "f15"
+      ],
+      "latency_ms": 47.289,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293650.5441575
+    },
+    {
+      "system": "eventmem",
+      "done": 9,
+      "total": 12,
+      "query_id": "q09",
+      "query": "What compliance gaps do we have?",
+      "relevant": [
+        "f05",
+        "f20",
+        "f26"
+      ],
+      "returned": [
+        "f26",
+        "f05",
+        "f20",
+        "warmup",
+        "f30"
+      ],
+      "latency_ms": 24.605,
+      "precision": 0.6,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 3,
+      "kind": "retrieval_progress",
+      "t": 1791293650.5679226
+    },
+    {
+      "system": "eventmem",
+      "done": 10,
+      "total": 12,
+      "query_id": "q10",
+      "query": "What performance problems have been reported?",
+      "relevant": [
+        "f06",
+        "f25",
+        "f31"
+      ],
+      "returned": [
+        "f25",
+        "f27",
+        "f08",
+        "f30",
+        "f11"
+      ],
+      "latency_ms": 21.483,
+      "precision": 0.2,
+      "recall": 0.3333,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293650.5905027
+    },
+    {
+      "system": "eventmem",
+      "done": 11,
+      "total": 12,
+      "query_id": "q11",
+      "query": "How should a client handle a duplicate booking submission?",
+      "relevant": [
+        "f08",
+        "f10",
+        "f32"
+      ],
+      "returned": [
+        "f08",
+        "f04",
+        "f15",
+        "f01",
+        "f07"
+      ],
+      "latency_ms": 20.672,
+      "precision": 0.2,
+      "recall": 0.3333,
+      "rr": 1.0,
+      "hits": 1,
+      "kind": "retrieval_progress",
+      "t": 1791293650.6113718
+    },
+    {
+      "system": "eventmem",
+      "done": 12,
+      "total": 12,
+      "query_id": "q12",
+      "query": "What is expiring or needs renewal soon?",
+      "relevant": [
+        "f05",
+        "f21"
+      ],
+      "returned": [
+        "f21",
+        "f05",
+        "f26",
+        "f12",
+        "f18"
+      ],
+      "latency_ms": 19.668,
+      "precision": 0.4,
+      "recall": 1.0,
+      "rr": 1.0,
+      "hits": 2,
+      "kind": "retrieval_progress",
+      "t": 1791293650.631055
+    },
+    {
+      "phase": "retrieval",
+      "system": "eventmem",
+      "metrics": {
+        "queries": 12,
+        "k": 5,
+        "precision_at_5": 0.4167,
+        "recall_at_5": 0.8472,
+        "mrr": 1.0,
+        "median_search_ms": 19.647,
+        "mean_search_ms": 22.465,
+        "p95_search_ms": 47.289
+      },
+      "kind": "phase_done",
+      "t": 1791293650.631055
+    },
+    {
+      "system": "eventmem",
+      "costs": {
+        "embed_calls": 44,
+        "vector_searches": 12,
+        "llm_calls": 0,
+        "pushes": 41,
+        "redis_commands_total": 212,
+        "redis_counters_reset": false,
+        "redis_commands": {
+          "client|setinfo": 12,
+          "hello": 6,
+          "info": 1,
+          "xack": 41,
+          "xadd": 74,
+          "xgroup|create": 5,
+          "xpending": 15,
+          "xreadgroup": 58
+        }
+      },
+      "metrics": {
+        "ingest": {
+          "facts_written": 32,
+          "median_write_ms": 26.572,
+          "mean_write_ms": 26.715,
+          "p95_write_ms": 32.923,
+          "total_wall_ms": 903.6,
+          "embed_calls": 32,
+          "pushes": 41
+        },
+        "propagation": {
+          "required_deliveries": 44,
+          "satisfied": 28,
+          "coverage": 0.6364,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 1.0,
+          "retrievals_spent": 0,
+          "retrievals_per_fact_learned": 0.0
+        },
+        "reactivity": {
+          "learned_without_asking": 40,
+          "mean_push_latency_ms": 7.121,
+          "p95_push_latency_ms": 11.507,
+          "can_react_to_another_agents_write": true
+        },
+        "retrieval": {
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8472,
+          "mrr": 1.0,
+          "median_search_ms": 19.647,
+          "mean_search_ms": 22.465,
+          "p95_search_ms": 47.289
+        }
+      },
+      "kind": "system_done",
+      "t": 1791293650.6467488
+    },
+    {
+      "rows": [
+        {
+          "system": "mem0",
+          "facts_written": 32,
+          "median_write_ms": 87.674,
+          "mean_write_ms": 88.92,
+          "p95_write_ms": 114.937,
+          "total_wall_ms": 2848.1,
+          "embed_calls": 87,
+          "pushes": 0,
+          "required_deliveries": 44,
+          "satisfied": 19,
+          "coverage": 0.4318,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 0.5714,
+          "retrievals_spent": 11,
+          "retrievals_per_fact_learned": 0.5789,
+          "learned_without_asking": 0,
+          "mean_push_latency_ms": NaN,
+          "p95_push_latency_ms": NaN,
+          "can_react_to_another_agents_write": false,
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8333,
+          "mrr": 1.0,
+          "median_search_ms": 60.89,
+          "mean_search_ms": 61.518,
+          "p95_search_ms": 70.15,
+          "vector_searches": 23,
+          "llm_calls": 0,
+          "redis_commands": 115,
+          "redis_counters_reset": false
+        },
+        {
+          "system": "eventmem",
+          "facts_written": 32,
+          "median_write_ms": 26.572,
+          "mean_write_ms": 26.715,
+          "p95_write_ms": 32.923,
+          "total_wall_ms": 903.6,
+          "embed_calls": 44,
+          "pushes": 41,
+          "required_deliveries": 44,
+          "satisfied": 28,
+          "coverage": 0.6364,
+          "reachable_deliveries": 28,
+          "coverage_of_reachable": 1.0,
+          "retrievals_spent": 0,
+          "retrievals_per_fact_learned": 0.0,
+          "learned_without_asking": 40,
+          "mean_push_latency_ms": 7.121,
+          "p95_push_latency_ms": 11.507,
+          "can_react_to_another_agents_write": true,
+          "queries": 12,
+          "k": 5,
+          "precision_at_5": 0.4167,
+          "recall_at_5": 0.8472,
+          "mrr": 1.0,
+          "median_search_ms": 19.647,
+          "mean_search_ms": 22.465,
+          "p95_search_ms": 47.289,
+          "vector_searches": 12,
+          "llm_calls": 0,
+          "redis_commands": 212,
+          "redis_counters_reset": false
+        }
+      ],
+      "verdicts": [
+        {
+          "kind": "tie",
+          "title": "Retrieval quality ties (recall@5 0.83 vs 0.85)",
+          "body": "Both run the same embedding model over the same corpus, so this is the expected result and the one worth having: adding push does not cost retrieval quality."
+        },
+        {
+          "kind": "win",
+          "title": "Propagation coverage 64% (EventMem) vs 43% (mem0)",
+          "body": "EventMem spent 0 retrievals to get there; mem0 spent 11. The pull system was given one search per declared interest, which is a generous reading of how it is used, and it still has to know to go looking."
+        },
+        {
+          "kind": "caveat",
+          "title": "Neither can exceed 64% on this corpus",
+          "body": "16 of the 44 required deliveries name an agent that never declared an interest in that fact's topic, so no interest-based router can deliver them. Against only the 28 reachable ones, EventMem got 100% and mem0 got 57% - that is the number that isolates routing and transport from how well the interests were written."
+        },
+        {
+          "kind": "capability",
+          "title": "40 facts reached an agent without it asking",
+          "body": "mem0 scores zero here by construction, not by failing: a passive store has no way to notify. This is a capability difference, not a performance one."
+        },
+        {
+          "kind": "info",
+          "title": "Redis commands: 212 (EventMem) vs 115 (mem0)",
+          "body": "Counted from the server's own INFO commandstats. EventMem pays extra commands to push; mem0 pays them to search. Which is cheaper depends entirely on the read/write ratio of your workload."
+        },
+        {
+          "kind": "caveat",
+          "title": "What this does not measure",
+          "body": "mem0 ran with infer=False, so its LLM fact-extraction, contradiction detection and memory-update logic were switched off. Those are its headline features and EventMem has no equivalent. This benchmark covers retrieval and propagation only."
+        }
+      ],
+      "kind": "run_done",
+      "t": 1791293650.6467488
+    }
+  ]
+}

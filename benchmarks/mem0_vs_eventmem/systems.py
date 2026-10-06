@@ -59,6 +59,14 @@ class Costs:
     #: Redis command counts, read from INFO commandstats so they are the
     #: server's own accounting rather than our guess at it.
     redis_commands: Dict[str, int] = field(default_factory=dict)
+    #: Raw totals at each end of the measurement. Kept so that a counter reset
+    #: part-way through is detectable instead of silently producing a small
+    #: wrong number: a reset makes every diff negative, the positive-only
+    #: filter drops them, and what survives looks like a plausible low count.
+    redis_total_before: int = 0
+    redis_total_after: int = 0
+    #: True when the server's counters moved backwards during the measurement.
+    redis_counters_reset: bool = False
 
     @property
     def redis_total(self) -> int:
@@ -164,12 +172,24 @@ async def redis_command_stats(client) -> Dict[str, int]:
 
 
 def diff_stats(before: Dict[str, int], after: Dict[str, int]) -> Dict[str, int]:
+    """Per-command deltas, positive only.
+
+    Negative deltas mean the server's counters were reset mid-measurement.
+    Callers must check for that with ``counters_were_reset`` -- filtering the
+    negatives away on their own turns a broken measurement into a believable
+    small one.
+    """
     keys = set(before) | set(after)
     return {
         k: after.get(k, 0) - before.get(k, 0)
         for k in sorted(keys)
         if after.get(k, 0) - before.get(k, 0) > 0
     }
+
+
+def counters_were_reset(before: Dict[str, int], after: Dict[str, int]) -> bool:
+    """Whether any command's count went backwards."""
+    return any(after.get(k, 0) < v for k, v in before.items())
 
 
 # ------------------------------------------------------------------ mem0 side
@@ -345,6 +365,10 @@ class Mem0System(MemorySystem):
         if self._admin is not None:
             after = await redis_command_stats(self._admin)
             self._costs.redis_commands = diff_stats(self._stats_before, after)
+            self._costs.redis_total_before = sum(self._stats_before.values())
+            self._costs.redis_total_after = sum(after.values())
+            self._costs.redis_counters_reset = counters_were_reset(
+                self._stats_before, after)
             from eventmem.transport.redis import _aclose
 
             await _aclose(self._admin)
@@ -389,7 +413,12 @@ class EventMemRedisSystem(MemorySystem):
         )
 
         self._client = await connect(self.redis_url)
-        await self._client.config_resetstat()
+        # Deliberately NOT config_resetstat(). Zeroing the server's counters
+        # here made every one of mem0's deltas negative, the positive-only
+        # filter dropped them, and mem0's Redis cost was reported as a single
+        # command instead of several hundred. A diff needs no reset, and
+        # resetting a counter another measurement depends on is never safe --
+        # especially on a server that is not exclusively ours.
         self._stats_before = await redis_command_stats(self._client)
 
         bus = RedisEventBus(self._client)
@@ -505,6 +534,10 @@ class EventMemRedisSystem(MemorySystem):
         if self._client is not None:
             after = await redis_command_stats(self._client)
             self._costs.redis_commands = diff_stats(self._stats_before, after)
+            self._costs.redis_total_before = sum(self._stats_before.values())
+            self._costs.redis_total_after = sum(after.values())
+            self._costs.redis_counters_reset = counters_were_reset(
+                self._stats_before, after)
         if self.runtime is not None:
             await self.runtime.close()
 

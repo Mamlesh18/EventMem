@@ -393,6 +393,7 @@ async def run_all(system: MemorySystem, emit: Emit,
             "llm_calls": costs.llm_calls,
             "pushes": costs.pushes,
             "redis_commands_total": costs.redis_total,
+            "redis_counters_reset": costs.redis_counters_reset,
             "redis_commands": dict(list(costs.redis_commands.items())[:14]),
         },
         "metrics": {name: r.metrics for name, r in results.items()},
@@ -414,7 +415,9 @@ def comparison_table(results: Dict[str, Dict[str, PhaseResult]],
                 "embed_calls": cost.embed_calls,
                 "vector_searches": cost.vector_searches,
                 "llm_calls": cost.llm_calls,
-                "redis_commands": cost.redis_total,
+                "redis_commands": (
+                    float("nan") if cost.redis_counters_reset else cost.redis_total),
+                "redis_counters_reset": cost.redis_counters_reset,
             })
         rows.append(row)
     return rows
@@ -509,6 +512,16 @@ def verdicts(rows: List[Dict[str, Any]], k: int = DEFAULT_K) -> List[Dict[str, s
     })
 
     # Cost.
+    if mem0.get("redis_counters_reset") or em.get("redis_counters_reset"):
+        out.append({
+            "kind": "loss",
+            "title": "Redis command counts are unreliable for this run",
+            "body": "The server's counters moved backwards during the "
+                    "measurement, so the per-command deltas are not valid. "
+                    "Something issued CONFIG RESETSTAT while the benchmark was "
+                    "running.",
+        })
+
     mredis, eredis = num(mem0, "redis_commands"), num(em, "redis_commands")
     if mredis and eredis:
         out.append({
