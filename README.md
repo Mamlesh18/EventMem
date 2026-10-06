@@ -110,9 +110,18 @@ reported rather than hidden. mem0 ran with `infer=False`, so its LLM
 fact-extraction, contradiction detection and graph memory were off and
 EventMem has no equivalent of any of them.
 
-Full numbers and the three measurement bugs found while producing them:
-[`docs/mem0-results.md`](docs/mem0-results.md). Method:
-[`docs/mem0-comparison.md`](docs/mem0-comparison.md).
+**Which should you use?**
+[`docs/choosing-a-memory-system.md`](docs/choosing-a-memory-system.md) is the
+decision guide: a scenario-by-scenario recommendation across mem0, EventMem on
+Redis and EventMem in-memory, with the full three-way benchmark, the evaluation
+methodology, and what the 117 tests actually cover. The short version is that
+mem0 is the better *memory* and EventMem the better *coordinator*, retrieval
+quality ties, and the only thing Redis costs EventMem is ~6ms of push latency.
+
+Also: [`docs/mem0-results.md`](docs/mem0-results.md) (the two-way run in
+detail, plus the three measurement bugs found while producing it) and
+[`docs/mem0-comparison.md`](docs/mem0-comparison.md) (method and fairness
+contract).
 
 ---
 

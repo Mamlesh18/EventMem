@@ -38,6 +38,7 @@ from . import corpus
 from .phases import comparison_table, run_all, verdicts
 from .systems import (
     EMBED_MODEL,
+    EventMemMemorySystem,
     EventMemRedisSystem,
     Mem0System,
     new_namespace,
@@ -165,6 +166,11 @@ async def benchmark(args, env: Dict[str, Any]) -> Dict[str, Any]:
         Mem0System(args.redis_url, namespace, vector_store=args.mem0_store),
         EventMemRedisSystem(args.redis_url, namespace),
     ]
+    if args.with_in_memory:
+        # The ablation: identical runtime, in-process transport and log. Shows
+        # what Redis costs EventMem, separately from what EventMem costs
+        # against mem0.
+        systems.append(EventMemMemorySystem(args.redis_url, namespace))
 
     results: Dict[str, Any] = {}
     costs: Dict[str, Any] = {}
@@ -373,6 +379,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--headless", action="store_true",
                         help="no dashboard; terminal output only")
     parser.add_argument("--json", help="write the full result document here")
+    parser.add_argument("--with-in-memory", action="store_true",
+                        help="also run EventMem on the in-process transport, as "
+                             "an ablation showing what Redis costs it")
     parser.add_argument("--selftest", action="store_true",
                         help="render the dashboard with synthetic numbers and no "
                              "Redis, to verify the page itself")

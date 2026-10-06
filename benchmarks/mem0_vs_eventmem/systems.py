@@ -542,6 +542,86 @@ class EventMemRedisSystem(MemorySystem):
             await self.runtime.close()
 
 
+class EventMemMemorySystem(EventMemRedisSystem):
+    """EventMem with the in-process transport and log.
+
+    Same runtime, same router, same embedder, same corpus - only the transport
+    and the event store differ. That makes it a clean ablation: the gap between
+    this and the Redis variant is the price of durability and of being able to
+    run agents in separate processes, and nothing else.
+
+    It is not a competitor to mem0 on equal terms, because it keeps nothing
+    across a restart. It is in the table to answer a different question: how
+    much does Redis cost EventMem?
+    """
+
+    name = "eventmem_memory"
+    label = "EventMem in-memory (push, no durability)"
+    kind = "push"
+
+    async def setup(self) -> None:
+        from eventmem import Agent, EventMemRuntime, Subscription
+        from eventmem.store.memory import InMemoryEventStore
+        from eventmem.transport.memory import InMemoryEventBus
+
+        self.runtime = EventMemRuntime(
+            embedder=CountingEmbedder(self._costs),
+            bus=InMemoryEventBus(),
+            event_store=InMemoryEventStore(),
+        )
+
+        system = self
+
+        class Recording(Agent):
+            def __init__(self, agent_id, runtime):
+                super().__init__(agent_id, runtime)
+                self.learned: Set[str] = set()
+
+            async def handle(self, event):
+                fact_id = event.attributes.get("fact_id")
+                if not fact_id:
+                    return
+                self.learned.add(fact_id)
+                latency_ms = None
+                if event.published_at is not None:
+                    from eventmem.core.clock import elapsed
+
+                    seconds, _precise = elapsed(event.published_at)
+                    latency_ms = seconds * 1000.0
+                system.deliveries.append({
+                    "fact_id": fact_id, "agent": self.id, "latency_ms": latency_ms,
+                })
+
+        for agent_id, topics in AGENTS.items():
+            agent = Recording(agent_id, self.runtime)
+            self.agents[agent_id] = agent
+            for topic in topics:
+                await self.runtime.subscribe(Subscription(
+                    subscriber_id=agent_id,
+                    attribute_filters={"topic": topic},
+                    label=f"{agent_id} <- {topic}",
+                ))
+
+        for agent in self.agents.values():
+            await agent.start()
+
+    async def settle(self) -> None:
+        # Exact, not timed: the bus knows how many deliveries are still in
+        # flight, so there is nothing to guess at here.
+        await self.runtime.bus.drain(timeout=10.0)
+        for agent in self.agents.values():
+            await agent.wait_idle()
+
+    async def teardown(self) -> None:
+        for agent in self.agents.values():
+            await agent.stop()
+        if self.runtime is not None:
+            await self.runtime.close()
+        # No Redis involved, so the command count is a true zero rather than
+        # an unmeasured blank.
+        self._costs.redis_commands = {}
+
+
 async def reset_namespace(redis_url: str, namespace: str) -> int:
     """Delete this run's keys so a re-run is not polluted by the last one.
 
