@@ -185,6 +185,29 @@ def required_deliveries() -> Set[tuple]:
     return {(f.id, agent) for f in FACTS for agent in f.needed_by}
 
 
+def reachable_deliveries() -> Set[tuple]:
+    """Required deliveries that an interest-based router could actually make.
+
+    A fact only reaches an agent if that agent declared an interest in its
+    topic. 16 of the 44 required deliveries name an agent that did not, so no
+    amount of push can satisfy them -- that is the standing cost of selective
+    routing, and reporting coverage without this denominator makes an
+    interest-declaration problem look like an architecture one.
+    """
+    return {
+        (f.id, agent)
+        for f in FACTS
+        for agent in f.needed_by
+        if f.topic in AGENTS[agent]
+    }
+
+
+def routing_ceiling() -> float:
+    """Highest propagation coverage any interest-based router can reach here."""
+    required = required_deliveries()
+    return len(reachable_deliveries()) / len(required) if required else float("nan")
+
+
 def fact_by_id() -> Dict[str, Fact]:
     return {f.id: f for f in FACTS}
 
@@ -196,6 +219,8 @@ def summary() -> Dict[str, int]:
         "queries": len(QUERIES),
         "topics": len({f.topic for f in FACTS}),
         "required_deliveries": len(required_deliveries()),
+        "reachable_deliveries": len(reachable_deliveries()),
+        "routing_ceiling": round(routing_ceiling(), 4),
         "labelled_relevant_pairs": sum(len(q.relevant) for q in QUERIES),
     }
 

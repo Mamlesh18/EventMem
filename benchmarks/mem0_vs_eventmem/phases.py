@@ -30,6 +30,7 @@ from .corpus import (
     QUERIES,
     WARMUP_FACT,
     WARMUP_QUERY,
+    reachable_deliveries,
     required_deliveries,
 )
 from .systems import MemorySystem
@@ -91,8 +92,35 @@ async def phase_warmup(system: MemorySystem, emit: Emit,
     costs.embed_calls = 0
     costs.vector_searches = 0
     costs.llm_calls = 0
+
+    # The warmup search surfaced results, which a pull system counts as having
+    # learned. Forget them, or the warmup shows up as propagation.
+    _forget_everything(system)
     await emit("phase_done", {"phase": "warmup", "system": system.name,
                               "metrics": {"warmed": True}})
+
+
+def _forget_everything(system: MemorySystem) -> None:
+    """Reset what every agent believes it knows.
+
+    Used between phases so one phase's reads cannot be credited to another.
+    Without it, the searches in the retrieval phase counted as propagation and
+    EventMem scored 0.727 coverage against a routing ceiling of 0.636 - a
+    score above the achievable maximum, which is how the leak was spotted.
+    """
+    for attr in ("_known",):
+        known = getattr(system, attr, None)
+        if isinstance(known, dict):
+            for value in known.values():
+                value.clear()
+    agents = getattr(system, "agents", None)
+    if isinstance(agents, dict):
+        for agent in agents.values():
+            if hasattr(agent, "learned"):
+                agent.learned.clear()
+    deliveries = getattr(system, "deliveries", None)
+    if isinstance(deliveries, list):
+        deliveries.clear()
 
 
 async def phase_ingest(system: MemorySystem, emit: Emit) -> PhaseResult:
@@ -260,6 +288,7 @@ async def phase_propagation(system: MemorySystem, emit: Emit,
     searches_used = system.costs.vector_searches - searches_before
 
     required = required_deliveries()
+    reachable = reachable_deliveries()
     actual: Set[tuple] = set()
     per_agent: List[Dict[str, Any]] = []
 
@@ -279,10 +308,21 @@ async def phase_propagation(system: MemorySystem, emit: Emit,
     covered = len(required & actual)
     coverage = covered / len(required) if required else float("nan")
 
+    reachable_covered = len(reachable & actual)
+
     result = PhaseResult("propagation", system.name, {
         "required_deliveries": len(required),
         "satisfied": covered,
         "coverage": round(coverage, 4),
+        # Two denominators, because they answer different questions.
+        # "coverage" asks: of everything an agent needed, how much did it get?
+        # An interest-based router cannot exceed the ceiling here no matter how
+        # well it works. "coverage_of_reachable" asks: of what the declared
+        # interests made deliverable, how much actually arrived? That one
+        # isolates the transport and routing from the interest declarations.
+        "reachable_deliveries": len(reachable),
+        "coverage_of_reachable": round(
+            reachable_covered / len(reachable), 4) if reachable else float("nan"),
         "retrievals_spent": searches_used,
         "retrievals_per_fact_learned": (
             round(searches_used / covered, 4) if covered else float("nan")
@@ -331,11 +371,15 @@ async def run_all(system: MemorySystem, emit: Emit,
     await system.setup()
     try:
         await phase_warmup(system, emit, k)
+        # Order matters. Propagation and reactivity are scored from what each
+        # agent knows without having asked, so they must run before any query
+        # phase: the retrieval phase's searches teach a pull system things, and
+        # crediting those to propagation measures the harness, not the system.
         results = {
             "ingest": await phase_ingest(system, emit),
-            "retrieval": await phase_retrieval(system, emit, k),
             "propagation": await phase_propagation(system, emit, k),
             "reactivity": await phase_reactivity(system, emit),
+            "retrieval": await phase_retrieval(system, emit, k),
         }
     finally:
         await system.teardown()
@@ -421,6 +465,9 @@ def verdicts(rows: List[Dict[str, Any]], k: int = DEFAULT_K) -> List[Dict[str, s
     mc, ec = num(mem0, "coverage"), num(em, "coverage")
     mrt, ert = num(mem0, "retrievals_spent"), num(em, "retrievals_spent")
     if mc is not None and ec is not None:
+        from .corpus import routing_ceiling
+
+        ceiling = routing_ceiling()
         out.append({
             "kind": "win" if ec >= mc else "loss",
             "title": f"Propagation coverage {ec:.0%} (EventMem) vs {mc:.0%} (mem0)",
@@ -429,6 +476,27 @@ def verdicts(rows: List[Dict[str, Any]], k: int = DEFAULT_K) -> List[Dict[str, s
                     "interest, which is a generous reading of how it is used, and "
                     "it still has to know to go looking.",
         })
+        mcr = num(mem0, "coverage_of_reachable")
+        ecr = num(em, "coverage_of_reachable")
+        if ecr is not None:
+            out.append({
+                "kind": "caveat",
+                "title": f"Neither can exceed {ceiling:.0%} on this corpus",
+                "body": "16 of the 44 required deliveries name an agent that never "
+                        "declared an interest in that fact's topic, so no "
+                        "interest-based router can deliver them. Against only the "
+                        f"28 reachable ones, EventMem got {ecr:.0%} and mem0 got "
+                        f"{mcr:.0%} - that is the number that isolates routing and "
+                        "transport from how well the interests were written.",
+            })
+        if ecr is not None and ecr < 0.999:
+            out.append({
+                "kind": "loss",
+                "title": f"EventMem missed {(1 - ecr):.0%} of what it could have delivered",
+                "body": "These are deliveries the subscriptions did match, so the "
+                        "gap is in the runtime or the measurement, not in the "
+                        "interest declarations. Worth investigating.",
+            })
 
     # Reactivity: structural.
     learned = num(em, "learned_without_asking") or 0

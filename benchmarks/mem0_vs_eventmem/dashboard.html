@@ -225,6 +225,13 @@
   <section>
     <h2>Method</h2>
     <div class="caveat" id="method">
+      <strong>Phase order.</strong> Propagation and reactivity are scored before any
+      query phase, because the retrieval phase's searches teach a pull system things
+      and crediting those to propagation would measure the harness rather than the
+      system. An earlier run had them in the other order and EventMem scored 0.727
+      coverage against an achievable ceiling of 0.636 &mdash; a score above the
+      maximum, which is how the leak was found.
+      <br><br>
       <strong>Fairness and what this does not measure.</strong>
       Both sides use <code>sentence-transformers all-MiniLM-L6-v2</code> and the same
       Redis instance. mem0 runs with <code>infer=False</code>, which skips its LLM
@@ -301,9 +308,10 @@ function renderTiles() {
       format: v => pct(v),
       note: "Share of the labelled relevant facts returned. Same embedder both sides, so a tie is the expected and desirable result.",
     }),
-    tile("Propagation coverage", "coverage", {
+    tile("Propagation coverage", "coverage_of_reachable", {
       format: v => pct(v),
-      note: "Of the facts an agent genuinely needed, how many it ended up holding.",
+      note: "Of the deliveries the declared interests made reachable, how many arrived. " +
+            "The stricter 'of required' figure is in the table, with its ceiling.",
     }),
     tile("Retrievals spent", "retrievals_spent", {
       note: "Searches each system had to issue to reach that coverage. Push needs none.",
@@ -360,8 +368,10 @@ const TABLE_KEYS = () => [
   ["ingest wall ms", "total_wall_ms"],
   ["Phase C — propagation", null],
   ["required deliveries", "required_deliveries"],
+  ["reachable by routing", "reachable_deliveries"],
   ["satisfied", "satisfied"],
-  ["coverage", "coverage"],
+  ["coverage (of required)", "coverage"],
+  ["coverage (of reachable)", "coverage_of_reachable"],
   ["retrievals spent", "retrievals_spent"],
   ["Phase D — reactivity", null],
   ["learned without asking", "learned_without_asking"],
@@ -445,7 +455,8 @@ function handle(e) {
         `${env.both_on_redis ? "both on Redis" : "mem0 on " + (env.mem0_store || "?")} · ${e.embed_model}`;
       const c = e.corpus || {};
       document.getElementById("p-corpus").textContent =
-        `${c.facts} facts · ${c.queries} queries · ${c.required_deliveries} required deliveries`;
+        `${c.facts} facts · ${c.queries} queries · ${c.required_deliveries} required `
+        + `(${c.reachable_deliveries} reachable, ceiling ${(c.routing_ceiling * 100).toFixed(0)}%)`;
       // ingest + retrieval + propagation + reactivity, per system
       state.totalSteps = 2 * ((c.facts || 0) + (c.queries || 0) + (c.agents || 0) + 1);
       if (!env.both_on_redis) {

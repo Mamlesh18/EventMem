@@ -335,6 +335,7 @@ def print_table(rows: List[Dict[str, Any]], k: int) -> None:
         ("search ms", "median_search_ms"),
         ("write ms", "median_write_ms"),
         ("coverage", "coverage"),
+        ("cov/reach", "coverage_of_reachable"),
         ("retrievals", "retrievals_spent"),
         ("no-ask", "learned_without_asking"),
         ("embeds", "embed_calls"),
